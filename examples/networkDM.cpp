@@ -54,7 +54,6 @@ void handleCounterMenu(uint8_t param)
   {
     case 1: {
               dm.setMessage("Counter: Start clicked!", 3);
-              dm.callJsFunction("mainMessage");
               dm.enableMenuItem("CounterPage", "StopWatch", "Stop");
               dm.disableMenuItem("CounterPage", "StopWatch", "Reset");
               dm.disableMenuItem("CounterPage", "StopWatch", "Start");
@@ -64,7 +63,6 @@ void handleCounterMenu(uint8_t param)
             break;
     case 2: {
               dm.setMessage("Counter: Stop clicked!", 3);
-              dm.callJsFunction("noMessages");
               dm.disableMenuItem("CounterPage","StopWatch", "Stop");
               dm.enableMenuItem("CounterPage","StopWatch", "Start");
               dm.enableMenuItem("CounterPage","StopWatch", "Reset");
