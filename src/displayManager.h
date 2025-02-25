@@ -147,6 +147,7 @@ public:
     void enableID(const char* pageName, const char* id);
     void disableID(const char* pageName, const char* id);
     void callJsFunction(const char* functionName);
+    void handleJsFunctionResult(const char* functionName, bool success);
     void includeJsScript(const char* scriptFile);
     void pageIsLoaded(std::function<void()> callback);
 

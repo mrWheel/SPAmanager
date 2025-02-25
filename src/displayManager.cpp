@@ -106,6 +106,19 @@ void DisplayManager::callJsFunction(const char* functionName)
   }
 }
 
+void DisplayManager::handleJsFunctionResult(const char* functionName, bool success)
+{
+  if (success)
+  {
+    debug(("JavaScript function [" + std::string(functionName) + "] executed successfully").c_str());
+  }
+  else
+  {
+    debug(("JavaScript function [" + std::string(functionName) + "] not found or failed to execute").c_str());
+  }
+}
+
+
 void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) 
 {
     if (type == WStype_CONNECTED) 
@@ -249,8 +262,16 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
                 }
             }
         }
+        else if (doc["type"] == "pageLoaded") {
+          debug("WebSocket: pageLoaded message received");
+          // Clear the servedScripts set to allow scripts to be included again
+          servedScripts.clear();
+          if (pageLoadedCallback) {
+              pageLoadedCallback();
+          }
+        }
     }
-}
+} // onWebSocketEvent()
 
 void DisplayManager::broadcastState() 
 {
