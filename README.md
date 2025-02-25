@@ -24,7 +24,7 @@ The `DisplayManager` library provides a simple and efficient way to manage Singl
 1. Open your PlatformIO project.
 2. Add the following line to your `platformio.ini` file:
     ```ini
-    lib_deps = mrWheel/displayManager
+    lib_deps = https://github.com/mrWheel/displayManager
     ```
 3. Save the `platformio.ini` file.
 4. The library will be installed automatically.
@@ -115,23 +115,23 @@ In this example, the web page displays the temperature and humidity readings fro
 
 ## API Reference
 
-### `begin(Stream* debugOut = nullptr)`
+#### `begin(Stream* debugOut = nullptr)`
 
 Initializes the `DisplayManager`. This method should be called in the `setup()` function.
 - `debugOut`: Optional parameter for debug output stream.
 
-### `addPage(const char* pageName, const char* html)`
+#### `addPage(const char* pageName, const char* html)`
 
 Adds a web page to the display manager.
 - `pageName`: The URL path where the page will be accessible.
 - `html`: The HTML content of the page.
 
-### `activatePage(const char* pageName)`
+#### `activatePage(const char* pageName)`
 
 Activates a web page, making it the current page being displayed.
 - `pageName`: The URL path of the page to activate.
 
-### `setPlaceholder(const char* pageName, const char* placeholder, T value)`
+#### `setPlaceholder(const char* pageName, const char* placeholder, T value)`
 
 Sets a placeholder value in the HTML content of a web page.
 
@@ -139,13 +139,13 @@ Sets a placeholder value in the HTML content of a web page.
 - `placeholder`: The placeholder ID to replace in the HTML content.
 - `value`: The value to set for the placeholder. This can be of any type that supports conversion to a string.
 
-### `addMenu(const char* pageName, const char* menuName)`
+#### `addMenu(const char* pageName, const char* menuName)`
 
 Adds a menu to a specific web page.
 - `pageName`: The URL path of the page to add the menu to.
 - `menuName`: The name of the menu.
 
-### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback)`
+#### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback)`
 
 Adds a menu item with a callback function to a specific menu on a web page.
 - `pageName`: The URL path of the page containing the menu.
@@ -153,7 +153,7 @@ Adds a menu item with a callback function to a specific menu on a web page.
 - `itemName`: The name of the menu item.
 - `callback`: The function to call when the menu item is selected.
 
-### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url)`
+#### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url)`
 
 Adds a menu item with a URL to a specific menu on a web page.
 - `pageName`: The URL path of the page containing the menu.
@@ -161,7 +161,7 @@ Adds a menu item with a URL to a specific menu on a web page.
 - `itemName`: The name of the menu item.
 - `url`: The URL to navigate to when the menu item is selected.
 
-### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(uint8_t)> callback, uint8_t param)`
+#### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(uint8_t)> callback, uint8_t param)`
 
 Adds a menu item with a parameterized callback function to a specific menu on a web page.
 - `pageName`: The URL path of the page containing the menu.
@@ -188,33 +188,109 @@ display.addMenuItem("page1", "mainMenu", "Action1", handleMenuAction, 1);
 display.addMenuItem("page1", "mainMenu", "Action2", handleMenuAction, 2);
 ```
 
-### `disableMenuItem(const char* pageName, const char* menuName, const char* itemName)`
+#### `disableMenuItem(const char* pageName, const char* menuName, const char* itemName)`
 
 Disables a specific menu item on a web page.
 - `pageName`: The URL path of the page containing the menu.
 - `menuName`: The name of the menu.
 - `itemName`: The name of the menu item to disable.
 
-### `enableMenuItem(const char* pageName, const char* menuName, const char* itemName)`
+#### `enableMenuItem(const char* pageName, const char* menuName, const char* itemName)`
 
 Enables a specific menu item on a web page.
 - `pageName`: The URL path of the page containing the menu.
 - `menuName`: The name of the menu.
 - `itemName`: The name of the menu item to enable.
 
-### `setMessage(const char* message, int duration)`
+#### `callJsFunction(const char* functionName)`
+
+Calls a JavaScript function in the browser by its name.
+
+- `functionName`: The name of the JavaScript function to call.
+
+This method sends a WebSocket message to the browser to execute a JavaScript function. The function must be defined in the global scope (window object) in the browser.
+
+Example:
+```cpp
+// Define a JavaScript function in a .js file (e.g., test.js)
+// window.logSomeMessages = function() {
+//   console.log('This is a log message');
+// }
+
+// Include the script file first
+display.includeJsScript("/test.js");
+
+// Then call the JavaScript function
+display.callJsFunction("logSomeMessages");
+```
+
+#### `includeJsScript(const char* scriptFile)`
+
+Includes a JavaScript file in the web page.
+
+- `scriptFile`: The path to the JavaScript file to include.
+
+This method sends a WebSocket message to the browser to load a JavaScript file. The file must be stored in the LittleFS filesystem. The `includeJsScript()` method must be inside the `pageIsLoaded(callBack)` function
+
+Example:
+```cpp
+void callBack()
+{
+  // Include a JavaScript file
+  display.includeJsScript("/myScript.js");
+
+  // You can include multiple script files
+  display.includeJsScript("/utilities.js");
+  display.includeJsScript("/animations.js");
+}
+```
+
+#### `pageIsLoaded(std::function<void()> callback)`
+
+Sets a callback function to be called when the web page is fully loaded.
+
+- `callback`: The function to call when the page is loaded.
+
+This method is useful for initializing the page with JavaScript files or performing other setup operations after the page has loaded.
+
+Example:
+```cpp
+void pageLoadedCallback() {
+  // This function will be called when the page is loaded
+  display.setMessage("Page loaded successfully!", 5);
+  
+  // Include JavaScript files
+  display.includeJsScript("/myScript.js");
+  
+  // Call JavaScript functions
+  display.callJsFunction("initializePage");
+}
+
+void setup() {
+  // Set up the display manager
+  display.begin();
+  
+  // Register the page loaded callback
+  display.pageIsLoaded(pageLoadedCallback);
+  
+  // Add pages and other setup
+  // ...
+}
+```
+
+#### `setMessage(const char* message, int duration)`
 
 Sets a message to be displayed for a specified duration.
 - `message`: The message to display.
 - `duration`: The duration in milliseconds to display the message.
 
-### `setErrorMessage(const char* message, int duration)`
+#### `setErrorMessage(const char* message, int duration)`
 
 Sets an error message to be displayed for a specified duration.
 - `message`: The error message to display.
 - `duration`: The duration in milliseconds to display the error message.
 
-### `handleClient()`
+#### `handleClient()`
 
 Handles incoming client requests. This method should be called repeatedly in the `loop()` function.
 
