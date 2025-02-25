@@ -14,6 +14,14 @@
 
         function connect() {
             ws = new WebSocket('ws://' + window.location.hostname + ':81');
+
+            ws.onopen = () => {
+                // Send pageLoaded signal
+                ws.send(JSON.stringify({
+                    type: 'pageLoaded'
+                }));
+            };
+
             ws.addEventListener('message', (event) => {
               try {
                     const data = JSON.parse(event.data);
@@ -128,7 +136,7 @@
         function handleEvent(eventType, data) {
             console.log('handleEvent() called with:', eventType, data);
             switch (eventType) {
-                case 'callJsFunction':
+              case 'callJsFunction':
                     console.log('Handling callJsFunction:', data);
                     // Check if we're waiting for any scripts to load
                     const pendingScripts = Object.values(scriptLoadPromises);
@@ -138,8 +146,20 @@
                             if (typeof window[data] === 'function') {
                                 console.log('handleEvent(): Calling function:', data);
                                 window[data]();
+                                // Send success feedback
+                                ws.send(JSON.stringify({
+                                    type: 'jsFunctionResult',
+                                    functionName: data,
+                                    success: true
+                                }));
                             } else {
                                 console.warn('[' + data + '] does not exist or is not a function');
+                                // Send failure feedback
+                                ws.send(JSON.stringify({
+                                    type: 'jsFunctionResult',
+                                    functionName: data,
+                                    success: false
+                                }));
                             }
                         });
                     } else {
@@ -147,8 +167,20 @@
                         if (typeof window[data] === 'function') {
                             console.log('handleEvent(): Calling function:', data);
                             window[data]();
+                            // Send success feedback
+                            ws.send(JSON.stringify({
+                                type: 'jsFunctionResult',
+                                functionName: data,
+                                success: true
+                            }));
                         } else {
                             console.warn('[' + data + '] does not exist or is not a function');
+                            // Send failure feedback
+                            ws.send(JSON.stringify({
+                                type: 'jsFunctionResult',
+                                functionName: data,
+                                success: false
+                            }));
                         }
                     }
                     break;
