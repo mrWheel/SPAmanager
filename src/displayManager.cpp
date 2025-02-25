@@ -270,8 +270,16 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
               pageLoadedCallback();
           }
         }
+        else if (doc["type"] == "jsFunctionResult") {
+          const char* functionName = doc["functionName"];
+          bool success = doc["success"];
+          
+          // Call the existing handleJsFunctionResult method
+          handleJsFunctionResult(functionName, success);
+        }
     }
-} // onWebSocketEvent()
+
+  } // onWebSocketEvent()
 
 void DisplayManager::broadcastState() 
 {
