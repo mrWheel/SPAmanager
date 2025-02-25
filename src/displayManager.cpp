@@ -46,7 +46,7 @@ void DisplayManager::setupWebServer()
     server.serveStatic("/displayManager.css", LittleFS, "/displayManager.css");
     server.serveStatic("/displayManager.html", LittleFS, "/displayManager.html");
     server.serveStatic("/disconnected.html", LittleFS, "/disconnected.html");
-    server.serveStatic("/fsManager.js", LittleFS, "/fsManager.js");
+  //server.serveStatic("/fsManager.js", LittleFS, "/fsManager.js");
     server.on("/", HTTP_GET, [this]() {
         server.send(200, "text/html", generateHTML().c_str());
     });

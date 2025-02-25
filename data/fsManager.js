@@ -1,4 +1,4 @@
-console.log('fsmanager.js loaded successfully');
+console.log('fsManager.js loaded successfully');
 
 let currentFolder = '/';
 
