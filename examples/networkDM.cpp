@@ -306,6 +306,10 @@ void setup()
     
     dm.begin(debug);
     fsManager.begin();
+    fsManager.addSystemFile("displayManager.html");
+    fsManager.addSystemFile("displayManager.css");
+    fsManager.addSystemFile("displayManager.js");
+    fsManager.addSystemFile("fsManager.js");
    
     dm.pageIsLoaded(pageIsLoadedCallback);
 
