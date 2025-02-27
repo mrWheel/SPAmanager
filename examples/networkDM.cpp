@@ -33,6 +33,8 @@ void pageIsLoadedCallback()
   debug->println("pageIsLoadedCallback(): Page is loaded callback executed");
   dm.includeJsScript("/fsManager.js");
   debug->println("pageIsLoadedCallback(): Included '/fsManager.js'");
+  fsManager.addSystemFile("fsManager.js");
+
 } 
 
     
@@ -309,7 +311,7 @@ void setup()
     fsManager.addSystemFile("displayManager.html");
     fsManager.addSystemFile("displayManager.css");
     fsManager.addSystemFile("displayManager.js");
-    fsManager.addSystemFile("fsManager.js");
+    fsManager.addSystemFile("disconnected.html");
    
     dm.pageIsLoaded(pageIsLoadedCallback);
 
