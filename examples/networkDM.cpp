@@ -31,8 +31,8 @@ void pageIsLoadedCallback()
 {
   dm.setMessage("Page is loaded!", 5);
   debug->println("pageIsLoadedCallback(): Page is loaded callback executed");
-  dm.includeJsScript("/test.js");
-  debug->println("pageIsLoadedCallback(): Included '/test.js'");
+  dm.includeJsScript("/fsManager.js");
+  debug->println("pageIsLoadedCallback(): Included '/fsManager.js'");
 } 
 
     
@@ -128,13 +128,13 @@ void mainCallback3()
 {
     dm.setMessage("Main Menu \"FSmanager\" clicked!", 5);
     dm.activatePage("FSmanagerPage");
-    dm.callJsFunction("FileList");
+    dm.callJsFunction("loadFileList");
 }
 
 void doJsFunction()
 {
     dm.setMessage("Main Menu \"logSomeMessagesn\" clicked!", 5);
-    dm.includeJsScript("/test.js");
+    //dm.includeJsScript("/fsManager.js");
     dm.callJsFunction("logSomeMessages");
 }
 
@@ -144,17 +144,29 @@ void handleFSmanagerMenu(uint8_t param)
   {
     case 1: {
               dm.setMessage("FS Manager : List LittleFS Clicked!", 5);
-              dm.callJsFunction("logSomeMessages");
+              dm.disableID("FSmanagerPage", "fsm_addFolder");
+              dm.disableID("FSmanagerPage", "fsm_fileUpload");
+              dm.enableID("FSmanagerPage",  "fsm_spaceInfo");
+              dm.enableID("FSmanagerPage",  "fsm_fileList");
+              dm.callJsFunction("loadFileList");
             }
             break;
     case 2: {
               dm.setMessage("FS Manager : Upload File Clicked!", 5);
-              dm.callJsFunction("mainMessage");
+              dm.disableID("FSmanagerPage", "fsm_spaceInfo");
+              dm.disableID("FSmanagerPage", "fsm_fileList");
+              dm.disableID("FSmanagerPage", "fsm_addFolder");
+              dm.enableID("FSmanagerPage",  "fsm_fileUpload");
+              dm.callJsFunction("uploadFile");
             }
             break;
     case 3: {
               dm.setMessage("FS Manager : Create Folder Clicked!", 5);
-              dm.callJsFunction("logSomeMessages");
+              dm.disableID("FSmanagerPage", "fsm_addFolder");
+              dm.disableID("FSmanagerPage", "fsm_fileList");
+              dm.disableID("FSmanagerPage", "fsm_fileUpload");
+              dm.enableID("FSmanagerPage",  "fsm_addFolder");
+              dm.callJsFunction("createFolder");
             }
             break;
     case 4: {
@@ -237,11 +249,18 @@ void setupInputPage()
 
 void setupFSmanagerPage()
 {
-    const char *fsManagerPage = R"HTML(
-      <div id="fsItem1" class="dM_space-item" style="display: block;">This is fsItem1</div>
-      <div id="fsItem2" class="dM_space-info" style="display: none;">This is fsItem2</div>
-      <input type="file" id="fsInput3" style="display: block;" onchange="uploadFile(this.files[0])">
-    )HTML";
+  const char *fsManagerPage = R"HTML(
+<div id="fsm_fileList" style="display: block;">
+</div>
+<div id="fsm_fileUpload" style="display: none;">
+  <input type="file" id="fsm_fileInput" onchange="uploadFile(this.files[0])">
+</div>
+<div id="fsm_addFolder" class="dM_space-info" style="display: none;">
+  <input type="text" placeholder="Enter new folder name" onchange="addFolder(this.files[0])">
+</div>
+<div id="fsm_spaceInfo" class="dM_space-info" style="display: none;">
+  <!-- Space information will be displayed here -->
+</div>    )HTML";
   
     dm.addPage("FSmanagerPage", fsManagerPage);
     dm.setPageTitle("FSmanagerPage", "FileSystem Manager");
@@ -252,7 +271,7 @@ void setupFSmanagerPage()
     dm.addMenuItem("FSmanagerPage", "FS Manager", "Create Folder", handleFSmanagerMenu, 3);
     dm.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleFSmanagerMenu, 4);
 
-    dm.includeJsScript("/test.js");
+    dm.includeJsScript("/fsManager.js");
 }
 
 
@@ -287,6 +306,10 @@ void setup()
     
     dm.begin(debug);
     fsManager.begin();
+    fsManager.addSystemFile("displayManager.html");
+    fsManager.addSystemFile("displayManager.css");
+    fsManager.addSystemFile("displayManager.js");
+    fsManager.addSystemFile("fsManager.js");
    
     dm.pageIsLoaded(pageIsLoadedCallback);
 

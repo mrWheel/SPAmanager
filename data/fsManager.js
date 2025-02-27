@@ -15,16 +15,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalOnMessage = ws.onmessage;
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
-                if (data.type === 'triggerUpload') {
+                if (data.type === 'fileUpload') {
                     console.log('Triggering file input click');
-                    document.getElementById('fileInput').click();
+                    document.getElementById('fsm_fileInput').click();
                 } else if (data.type === 'createFolder') {
                     console.log('Triggering create folder');
                     createFolder();
                 } else if (data.type === 'reboot') {
                     console.log('Triggering reboot');
                     reboot();
-                } else if (data.type === 'triggerFileList') {
+                } else if (data.type === 'fileList') {
                     console.log('Triggering file list refresh');
                     loadFileList();
                 }
@@ -38,143 +38,203 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function uploadFile(file) {
-    if (!file) {
-        console.log('No file selected');
-        return;
-    }
-    
-    console.log('Starting upload for file:', file.name);
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/fsm/upload', true);
-    
-    xhr.upload.onprogress = function(e) {
-        if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            console.log('Upload progress: ' + percentComplete.toFixed(2) + '%');
-        }
-    };
-    
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            console.log('Upload completed successfully');
-            loadFileList();
-        } else {
-            console.error('Upload failed with status:', xhr.status);
-            console.error('Response:', xhr.responseText);
-        }
-    };
-    
-    xhr.onerror = function() {
-        console.error('Upload failed due to network error');
-    };
-    
-    console.log('Sending upload request...');
-    xhr.send(formData);
+  console.log('uploadFile() called, Uploading file:', file.name);
+
+  if (!file) {
+      console.log('No file selected');
+      return;
+  }
+  
+  // Ensure currentFolder is properly formatted
+  let uploadFolder = currentFolder;
+  if (uploadFolder !== '/' && !uploadFolder.endsWith('/')) {
+      uploadFolder += '/';
+  }
+  
+  console.log('Starting upload for file['+ file.name+ '] to folder['+ uploadFolder +']');
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', uploadFolder);
+  
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/fsm/upload', true);
+  
+  xhr.upload.onprogress = function(e) {
+      if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          console.log('Upload progress: ' + percentComplete.toFixed(2) + '%');
+      }
+  };
+  
+  xhr.onload = function() {
+      if (xhr.status === 200) {
+          console.log('Upload completed successfully');
+          
+          // Set the reset state to ignore the currentFolder from the server
+          isResettingToRoot = true;
+          
+          loadFileList();
+      } else {
+          console.error('Upload failed with status:', xhr.status);
+          console.error('Response:', xhr.responseText);
+      }
+  };
+  
+  xhr.onerror = function() {
+      console.error('Upload failed due to network error');
+  };
+  
+  console.log('Sending upload request...');
+  xhr.send(formData);
 }
 
+// Add a flag to track if we're in a reset state
+var isResettingToRoot = false;
+
 function loadFileList() {
-    console.log('Loading file list for folder:', currentFolder);
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', '/fsm/filelist?folder=' + currentFolder, true);
-    
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            console.log('File list received successfully');
-            var data = JSON.parse(xhr.responseText);
-            
-            var fileListElement = document.getElementById('fileList');
-            if (!fileListElement) {
-                console.error('fileList element not found in DOM');
-                return;
-            }
-            fileListElement.innerHTML = '';
+  console.log('Loading file list for folder:', currentFolder);
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', '/fsm/filelist?folder=' + currentFolder, true);
+  
+  xhr.onload = function() {
+      if (xhr.status === 200) {
+          console.log('File list received successfully');
+          var data = JSON.parse(xhr.responseText);
+          
+          // Update currentFolder from the response - completely replace it
+          // But only if we're not in a reset state
+          if (data.currentFolder && !isResettingToRoot) {
+              currentFolder = data.currentFolder;
+              console.log('Updated currentFolder from response:', currentFolder);
+          } else if (isResettingToRoot) {
+              console.log('Ignoring currentFolder from response due to reset state');
+              isResettingToRoot = false; // Clear the reset state
+          }
+          
+          var fileListElement = document.getElementById('fsm_fileList');
+          if (!fileListElement) {
+              console.error('fileList element not found in DOM');
+              return;
+          }
+          fileListElement.innerHTML = '';
 
-            // Add folder name header
-            var headerItem = document.createElement('div');
-            headerItem.classList.add('dM_file-list-header');
-            headerItem.textContent = currentFolder === '/' ? 'Root' : currentFolder.slice(0, -1).split('/').pop();
-            fileListElement.appendChild(headerItem);
-            
-            // Create arrays for folders and files
-            var folders = data.files.filter(function(file) { return file.isDir; });
-            var files = data.files.filter(function(file) { return !file.isDir; });
+          // Add folder name header
+          var headerItem = document.createElement('div');
+          headerItem.classList.add('dM_file-list-header');
+          headerItem.textContent = currentFolder === '/' ? 'Root' : currentFolder.slice(0, -1).split('/').pop();
+          fileListElement.appendChild(headerItem);
+          
+          // Create arrays for folders and files
+          // Remove duplicates by using a Map with folder name as key
+          var folderMap = new Map();
+          var files = [];
+          
+          for (var i = 0; i < data.files.length; i++) {
+              var file = data.files[i];
+              if (file.isDir) {
+                  // Only add if not already in the map
+                  if (!folderMap.has(file.name)) {
+                      folderMap.set(file.name, file);
+                  }
+              } else {
+                  files.push(file);
+              }
+          }
+          
+          // Convert map back to array
+          var folders = Array.from(folderMap.values());
 
-            console.log('Found folders:', folders.length, 'files:', files.length);
+          console.log('Found folders:', folders.length, 'files:', files.length);
 
-            // Sort folders and files alphabetically
-            folders.sort(function(a, b) { return a.name.localeCompare(b.name); });
-            files.sort(function(a, b) { return a.name.localeCompare(b.name); });
+          // Sort folders and files alphabetically
+          files.sort(function(a, b) { return a.name.localeCompare(b.name); });
+          folders.sort(function(a, b) { return a.name.localeCompare(b.name); });
 
-            var itemCount = 0;
+          var itemCount = 0;
 
-            if (currentFolder !== '/') {
-                itemCount++;
-                var backItem = document.createElement('li');
-                backItem.classList.add('dM_file-item');
-                backItem.innerHTML = '<span style="cursor: pointer" onclick="navigateUp()"><span class="dM_folder-icon">[F]</span>..</span><span class="dM_size"></span><span></span><span></span>';
-                backItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
-                fileListElement.appendChild(backItem);
-            }
+          if (currentFolder !== '/') {
+              itemCount++;
+              var backItem = document.createElement('li');
+              backItem.classList.add('dM_file-item');
+              backItem.innerHTML = '<span style="cursor: pointer" onclick="navigateUp()"><span class="dM_folder-icon">[F]</span>..</span><span class="dM_size"></span><span></span><span></span>';
+              backItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
+              fileListElement.appendChild(backItem);
+          }
 
-            // Add folders
-            for (var i = 0; i < folders.length; i++) {
-                var folder = folders[i];
-                itemCount++;
-                var fileItem = document.createElement('li');
-                fileItem.classList.add('dM_file-item');
-                
-                // Create closure to preserve folder name
-                (function(folder, fileItem, itemCount) {
-                    // Check if folder is empty
-                    var checkXhr = new XMLHttpRequest();
-                    checkXhr.open('GET', '/fsm/filelist?folder=' + currentFolder + folder.name + '/', true);
-                    
-                    checkXhr.onload = function() {
-                        var isEmpty = checkXhr.status === 200 && 
-                                   (!JSON.parse(checkXhr.responseText).files || 
-                                    JSON.parse(checkXhr.responseText).files.length === 0);
-                        
-                        fileItem.innerHTML = '<span style="cursor: pointer" onclick="openFolder(\'' + folder.name + '\')"><span class="dM_folder-icon">[F]</span>' + folder.name + '</span><span class="dM_size"></span><span></span><button class="dM_delete" onclick="deleteFolder(\'' + folder.name + '\')" ' + (!isEmpty ? 'disabled' : '') + '>Delete</button>';
-                        fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
-                        fileListElement.appendChild(fileItem);
-                    };
-                    
-                    checkXhr.send();
-                })(folder, fileItem, itemCount);
-            }
+          // Add folders first, without checking if they're empty
+          for (var i = 0; i < folders.length; i++) {
+              var folder = folders[i];
+              itemCount++;
+              var fileItem = document.createElement('li');
+              fileItem.classList.add('dM_file-item');
+              
+              // Check folder access permissions
+              var deleteButton = '';
+              if (folder.access === 'r') {
+                  deleteButton = '<button class="dM_delete" disabled>[Locked]</button>';
+              } else {
+                  // Assume folder might not be empty, disable delete button by default
+                  deleteButton = '<button class="dM_delete" onclick="deleteFolder(\'' + folder.name + '\')" disabled>Delete</button>';
+              }
+              
+              fileItem.innerHTML = '<span style="cursor: pointer" onclick="openFolder(\'' + folder.name + '\')"><span class="dM_folder-icon">[F]</span>' + folder.name + '</span><span class="dM_size"></span><span></span>' + deleteButton;
+              fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
+              fileListElement.appendChild(fileItem);
+          }
+          
+          // Add files
+          for (var i = 0; i < files.length; i++) {
+              var file = files[i];
+              itemCount++;
+              var fileItem = document.createElement('li');
+              fileItem.classList.add('dM_file-item');
+              
+              // Check file access permissions
+              var deleteButton = '';
+              if (file.access === 'r') {
+                  deleteButton = '<button class="dM_delete" disabled>[Locked]</button>';
+              } else {
+                  deleteButton = '<button class="dM_delete" onclick="deleteFile(\'' + file.name + '\')">Delete</button>';
+              }
+              
+              fileItem.innerHTML = '<span>[D] ' + file.name + '</span><span class="dM_size">' + formatSize(file.size) + '</span><button onclick="downloadFile(\'' + file.name + '\')">Download</button>' + deleteButton;
+              fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
+              fileListElement.appendChild(fileItem);
+          }
 
-            // Add files
-            for (var i = 0; i < files.length; i++) {
-                var file = files[i];
-                itemCount++;
-                var fileItem = document.createElement('li');
-                fileItem.classList.add('dM_file-item');
-                fileItem.innerHTML = '<span>[D] ' + file.name + '</span><span class="dM_size">' + formatSize(file.size) + '</span><button onclick="downloadFile(\'' + file.name + '\')">Download</button><button class="dM_delete" onclick="deleteFile(\'' + file.name + '\')">Delete</button>';
-                fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
-                fileListElement.appendChild(fileItem);
-            }
-
-            // Update space information
-            var spaceInfo = document.getElementById('spaceInfo');
-            if (spaceInfo) {
-                var availableSpace = data.totalSpace - data.usedSpace;
-                spaceInfo.textContent = 'FileSystem uses ' + formatSize(data.usedSpace) + ' of ' + formatSize(data.totalSpace) + ' (' + formatSize(availableSpace) + ' available)';
-            } else {
-                console.error('spaceInfo element not found in DOM');
-            }
-        } else {
-            console.error('Failed to load file list, status:', xhr.status);
-        }
-    };
-    
-    xhr.onerror = function() {
-        console.error('Failed to load file list');
-    };
-    
-    xhr.send();
+          // Update space information
+          var spaceInfo = document.getElementById('fsm_spaceInfo');
+          if (spaceInfo) {
+              var availableSpace = data.totalSpace - data.usedSpace;
+              spaceInfo.textContent = 'FileSystem uses ' + formatSize(data.usedSpace) + ' of ' + formatSize(data.totalSpace) + ' (' + formatSize(availableSpace) + ' available)';
+          } else {
+              console.error('fsm_spaceInfo element not found in DOM');
+          }
+      } else {
+          console.error('Failed to load file list, status:', xhr.status);
+          
+          // If we get an error, reset to root folder
+          if (xhr.status === 400) {
+              console.log('Resetting to root folder due to error');
+              currentFolder = '/';
+              isResettingToRoot = true; // Set the reset state
+              loadFileList();
+          }
+      }
+  };
+  
+  xhr.onerror = function() {
+      console.error('Failed to load file list');
+      
+      // If we get an error, reset to root folder
+      console.log('Resetting to root folder due to error');
+      currentFolder = '/';
+      isResettingToRoot = true; // Set the reset state
+      loadFileList();
+  };
+  
+  xhr.send();
 }
 
 function navigateUp() {
@@ -183,6 +243,10 @@ function navigateUp() {
     currentFolder = currentFolder.split('/').slice(0, -2).join('/') + '/';
     if (currentFolder === '') currentFolder = '/';
     console.log('New folder:', currentFolder);
+    
+    // Set the reset state to ignore the currentFolder from the server
+    isResettingToRoot = true;
+    
     loadFileList();
 }
 
@@ -190,7 +254,7 @@ function openFolder(folderName) {
     console.log('Opening folder:', folderName);
     var oldFolder = currentFolder;
     if (currentFolder === '/') {
-        currentFolder = folderName;
+        currentFolder = '/' + folderName;  // Add leading slash
     } else {
         var base = currentFolder.endsWith('/') ? currentFolder.slice(0, -1) : currentFolder;
         currentFolder = base + '/' + folderName;
@@ -198,6 +262,10 @@ function openFolder(folderName) {
     if (!currentFolder.startsWith('/')) currentFolder = '/' + currentFolder;
     if (!currentFolder.endsWith('/')) currentFolder += '/';
     console.log('New folder path:', currentFolder);
+    
+    // Set the reset state to ignore the currentFolder from the server
+    isResettingToRoot = true;
+    
     loadFileList();
 }
 
@@ -226,6 +294,10 @@ function deleteFolder(folderName) {
             deleteXhr.onload = function() {
                 if (deleteXhr.status === 200) {
                     console.log('Folder deleted successfully');
+                    
+                    // Set the reset state to ignore the currentFolder from the server
+                    isResettingToRoot = true;
+                    
                     loadFileList();
                 } else {
                     console.error('Failed to delete folder, status:', deleteXhr.status);
@@ -237,6 +309,8 @@ function deleteFolder(folderName) {
             };
             
             deleteXhr.send('folder=' + encodeURIComponent(folderName));
+        } else {
+            console.error('Failed to check if folder is empty, status:', checkXhr.status);
         }
     };
     
@@ -287,6 +361,10 @@ function deleteFile(fileName) {
     xhr.onload = function() {
         if (xhr.status === 200) {
             console.log('File deleted successfully');
+            
+            // Set the reset state to ignore the currentFolder from the server
+            isResettingToRoot = true;
+            
             loadFileList();
         } else {
             console.error('Failed to delete file, status:', xhr.status);
@@ -323,6 +401,10 @@ function createFolder() {
     xhr.onload = function() {
         if (xhr.status === 200) {
             console.log('Folder created successfully');
+            
+            // Set the reset state to ignore the currentFolder from the server
+            isResettingToRoot = true;
+            
             loadFileList();
         } else {
             console.error('Failed to create folder, status:', xhr.status);
