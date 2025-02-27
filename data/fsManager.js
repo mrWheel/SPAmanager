@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = JSON.parse(event.data);
                 if (data.type === 'triggerUpload') {
                     console.log('Triggering file input click');
-                    document.getElementById('fileInput').click();
+                    document.getElementById('fsm_fileInput').click();
                 } else if (data.type === 'createFolder') {
                     console.log('Triggering create folder');
                     createFolder();
@@ -85,7 +85,7 @@ function loadFileList() {
             console.log('File list received successfully');
             var data = JSON.parse(xhr.responseText);
             
-            var fileListElement = document.getElementById('fileList');
+            var fileListElement = document.getElementById('fsm_fileList');
             if (!fileListElement) {
                 console.error('fileList element not found in DOM');
                 return;
@@ -105,8 +105,8 @@ function loadFileList() {
             console.log('Found folders:', folders.length, 'files:', files.length);
 
             // Sort folders and files alphabetically
-            folders.sort(function(a, b) { return a.name.localeCompare(b.name); });
             files.sort(function(a, b) { return a.name.localeCompare(b.name); });
+            folders.sort(function(a, b) { return a.name.localeCompare(b.name); });
 
             var itemCount = 0;
 
@@ -158,7 +158,7 @@ function loadFileList() {
             }
 
             // Update space information
-            var spaceInfo = document.getElementById('spaceInfo');
+            var spaceInfo = document.getElementById('fsm_spaceInfo');
             if (spaceInfo) {
                 var availableSpace = data.totalSpace - data.usedSpace;
                 spaceInfo.textContent = 'FileSystem uses ' + formatSize(data.usedSpace) + ' of ' + formatSize(data.totalSpace) + ' (' + formatSize(availableSpace) + ' available)';

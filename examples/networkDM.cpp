@@ -144,25 +144,29 @@ void handleFSmanagerMenu(uint8_t param)
   {
     case 1: {
               dm.setMessage("FS Manager : List LittleFS Clicked!", 5);
-              dm.disableID("FSmanagerPage", "fsManagerAddFolder");
-              dm.disableID("FSmanagerPage", "fsManagerFileUpload");
-              dm.enableID("FSmanagerPage", "fsManagerListFiles");
+              dm.disableID("FSmanagerPage", "fsm_addFolder");
+              dm.disableID("FSmanagerPage", "fsm_fileUpload");
+              dm.enableID("FSmanagerPage",  "fsm_spaceInfo");
+              dm.enableID("FSmanagerPage",  "fsm_fileList");
               dm.callJsFunction("loadFileList");
             }
             break;
     case 2: {
               dm.setMessage("FS Manager : Upload File Clicked!", 5);
-              dm.disableID("FSmanagerPage", "fsManagerListFiles");
-              dm.disableID("FSmanagerPage", "fsManagerAddFolder");
-              dm.enableID("FSmanagerPage", "fsManagerFileUpload");
+              dm.disableID("FSmanagerPage", "fsm_spaceInfo");
+              dm.disableID("FSmanagerPage", "fsm_fileList");
+              dm.disableID("FSmanagerPage", "fsm_addFolder");
+              dm.enableID("FSmanagerPage",  "fsm_fileUpload");
+              dm.callJsFunction("uploadFile");
             }
             break;
     case 3: {
               dm.setMessage("FS Manager : Create Folder Clicked!", 5);
-              dm.disableID("FSmanagerPage", "fsManagerListFiles");
-              dm.disableID("FSmanagerPage", "fsManagerFileUpload");
-              dm.enableID("FSmanagerPage", "fsManagerAddFolder");
-              dm.callJsFunction("logSomeMessages");
+              dm.disableID("FSmanagerPage", "fsm_addFolder");
+              dm.disableID("FSmanagerPage", "fsm_fileList");
+              dm.disableID("FSmanagerPage", "fsm_fileUpload");
+              dm.enableID("FSmanagerPage",  "fsm_addFolder");
+              dm.callJsFunction("createFolder");
             }
             break;
     case 4: {
@@ -246,15 +250,17 @@ void setupInputPage()
 void setupFSmanagerPage()
 {
   const char *fsManagerPage = R"HTML(
-    <div id="fsManagerFileList" style="display: block;">
-    </div>
-    <div id= id="fsManagerFileUpload" style="display: none;">
-      <input type="file" id="fsManagerFileUpload" onchange="uploadFile(this.files[0])">
-    </div
-    <div id="fsManagerAddFolder" class="dM_space-info" style="display: none;">
-      <input type="text" placeholder="Enter new folder name" onchange="addFolder(this.files[0])">
-    </div>
-    )HTML";
+<div id="fsm_fileList" style="display: block;">
+</div>
+<div id="fsm_fileUpload" style="display: none;">
+  <input type="file" id="fsm_fileInput" onchange="uploadFile(this.files[0])">
+</div>
+<div id="fsm_addFolder" class="dM_space-info" style="display: none;">
+  <input type="text" placeholder="Enter new folder name" onchange="addFolder(this.files[0])">
+</div>
+<div id="fsm_spaceInfo" class="dM_space-info" style="display: none;">
+  <!-- Space information will be displayed here -->
+</div>    )HTML";
   
     dm.addPage("FSmanagerPage", fsManagerPage);
     dm.setPageTitle("FSmanagerPage", "FileSystem Manager");
