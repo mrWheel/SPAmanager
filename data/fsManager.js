@@ -162,27 +162,27 @@ function loadFileList() {
               fileListElement.appendChild(backItem);
           }
 
-          // Add folders first, without checking if they're empty
+          // Add folders first, checking if they're empty
           for (var i = 0; i < folders.length; i++) {
-              var folder = folders[i];
-              itemCount++;
-              var fileItem = document.createElement('li');
-              fileItem.classList.add('dM_file-item');
-              
-              // Check folder access permissions
-              var deleteButton = '';
-              if (folder.access === 'r') {
-                  deleteButton = '<button class="dM_delete" disabled>[Locked]</button>';
-              } else {
-                  // Assume folder might not be empty, disable delete button by default
-                  deleteButton = '<button class="dM_delete" onclick="deleteFolder(\'' + folder.name + '\')" disabled>Delete</button>';
-              }
-              
-              fileItem.innerHTML = '<span style="cursor: pointer" onclick="openFolder(\'' + folder.name + '\')"><span class="dM_folder-icon">[F]</span>' + folder.name + '</span><span class="dM_size"></span><span></span>' + deleteButton;
-              fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
-              fileListElement.appendChild(fileItem);
+            var folder = folders[i];
+            itemCount++;
+            var fileItem = document.createElement('li');
+            fileItem.classList.add('dM_file-item');
+            
+            // Check folder access permissions
+            var deleteButton = '';
+            if (folder.access === 'r') {
+                deleteButton = '<button class="dM_delete" disabled>Locked</button>';
+            } else {
+                // Enable delete button for empty folders
+                deleteButton = '<button class="dM_delete" onclick="deleteFolder(\'' + folder.name + '\')">Delete</button>';
+            }
+            
+            fileItem.innerHTML = '<span style="cursor: pointer" onclick="openFolder(\'' + folder.name + '\')"><span class="dM_folder-icon">[F]</span>' + folder.name + '</span><span class="dM_size"></span><span></span>' + deleteButton;
+            fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
+            fileListElement.appendChild(fileItem);
           }
-          
+        
           // Add files
           for (var i = 0; i < files.length; i++) {
               var file = files[i];
@@ -193,7 +193,7 @@ function loadFileList() {
               // Check file access permissions
               var deleteButton = '';
               if (file.access === 'r') {
-                  deleteButton = '<button class="dM_delete" disabled>[Locked]</button>';
+                  deleteButton = '<button class="dM_delete" disabled>Locked</button>';
               } else {
                   deleteButton = '<button class="dM_delete" onclick="deleteFile(\'' + file.name + '\')">Delete</button>';
               }
