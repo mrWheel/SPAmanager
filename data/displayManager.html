@@ -464,16 +464,34 @@
 
       function processAction(processType) {
         console.log('Processing action:', processType);
-        ws.send(JSON.stringify({
+        
+        // Get the popup ID
+        const popupOverlay = document.querySelector('.popup-overlay');
+        const popupId = popupOverlay?.id.replace('_overlay', '');
+        
+        // Collect all input values from the popup
+        const inputValues = {};
+        if (popupOverlay) {
+          const inputs = popupOverlay.querySelectorAll('input');
+          console.log('Found', inputs.length, 'input fields in popup');
+          inputs.forEach(input => {
+            if (input.id) {
+              inputValues[input.id] = input.value;
+              console.log('Collected input value:', input.id, '=', input.value);
+            }
+          });
+        }
+        
+        // Log the complete message for debugging
+        const message = {
           type: 'process',
           processType: processType,
-          popupId: document.querySelector('.popup-overlay')?.id.replace('_overlay', '')
-        }));
-      }
-
-      function proceed() {
-        console.log('Proceeding...');
-        processAction('proceed');
+          popupId: popupId,
+          inputValues: inputValues
+        };
+        console.log('Sending WebSocket message:', JSON.stringify(message));
+        
+        ws.send(JSON.stringify(message));
       }
 
     </script>

@@ -133,6 +133,37 @@ void mainCallback3()
     dm.callJsFunction("loadFileList");
 }
 
+void processInputCallback(const std::map<std::string, std::string>& inputValues)
+{
+  debug->println("Process callback: proceed action received");
+  debug->printf("Received %d input values\n", inputValues.size());
+  
+  // Access input values directly from the map
+  if (inputValues.count("input1") > 0) {
+    const std::string& value = inputValues.at("input1");
+    debug->printf("Input1 (raw): %s\n", value.c_str());
+    
+    // Convert to integer if needed
+    int intValue = atoi(value.c_str());
+    debug->printf("Input1 (as int): %d\n", intValue);
+  } else {
+    debug->println("Input1 not found in input values");
+  }
+  
+  if (inputValues.count("input2") > 0) {
+    const std::string& value = inputValues.at("input2");
+    debug->printf("Input2: %s\n", value.c_str());
+  } else {
+    debug->println("Input2 not found in input values");
+  }
+  
+  // Print all input values for debugging
+  debug->println("All input values:");
+  for (const auto& pair : inputValues) {
+    debug->printf("  %s = %s\n", pair.first.c_str(), pair.second.c_str());
+  }
+}
+
 void doJsFunction()
 {
     dm.setMessage("Main Menu \"logSomeMessagesn\" clicked!", 5);
@@ -194,30 +225,47 @@ void setupMainPage()
     dm.addMenuItem("Main", "Main Menu", "FSmanager", mainCallback3);
     dm.addMenuItem("Main", "Main Menu", "logSomeMessages", doJsFunction);
     dm.addMenu("Main", "TestPopUp");
-    const char *popupInput = R"HTML(
-      <div style="font-size: 48px; text-align: center; font-weight: bold;">Input Fields</div>
-      <label for="input1">Input 1:</label>
+    const char *popup5Input = R"HTML(
+      <div style="font-size: 48px; text-align: center; font-weight: bold;">Five Input Fields</div>
+      <label for="input1">Input 1 (Number):</label>
       <input type="number" step="1" id="input1" placeholder="integer value">
       <br>
-      <label for="input2">Input 2:</label>
+      <label for="input2">Input 2 (Text):</label>
       <input type="text" id="input2" placeholder="text value">
+      <br>
+      <label for="input3">Input 3 (Float):</label>
+      <input type="number" step="0.1" id="input3" placeholder="float value">
+      <br>
+      <label for="input4">Input 4 (Date):</label>
+      <input type="date" id="input4">
+      <br>
+      <label for="input5">Input 5 (Color):</label>
+      <input type="color" id="input5" value="#ff0000">
       <br>
       <button type="button" onClick="closePopup('popup_TestPopUp_InputFields')">Cancel</button>
       <button type="button" id="proceedButton" onClick="processAction('proceed')">Proceed</button>
 
     )HTML";
-      
-    dm.addMenuItemPopup("Main", "TestPopUp", "InputFields", popupInput, [](const char* processType) {
-      if (strcmp(processType, "proceed") == 0) {
-        debug->println("Process callback: proceed action received");
-        // Add code to handle proceed action
-      }
-    });
+    dm.addMenuItemPopup("Main", "TestPopUp", "InputFields5", popup5Input, processInputCallback);
+
+    const char *popup2Input = R"HTML(
+      <div style="font-size: 48px; text-align: center; font-weight: bold;">Two Input Fields</div>
+      <label for="input1">Input 1 (Number):</label>
+      <input type="number" step="1" id="input1" placeholder="integer value">
+      <br>
+      <label for="input2">Input 2 (Text):</label>
+      <input type="text" id="input2" placeholder="text value">
+      <br>
+      <button type="button" onClick="closePopup('popup_TestPopUp_InputFields')">Cancel</button>
+      <button type="button" id="proceedButton" onClick="processAction('proceed')">Proceed</button>
+    )HTML";
+    dm.addMenuItemPopup("Main", "TestPopUp", "InputFields", popup2Input, processInputCallback);
+
     const char *popupUpload = R"HTML(
         <div style="font-size: 48px; text-align: center; font-weight: bold;">sometxt</div>
         <input type="file" id="filePopup1" onchange="uploadFile(this.files[0])">
       )HTML";
-    dm.addMenuItemPopup("Main", "TestPopUp", "UploadFile", popupUpload);
+    dm.addMenuItemPopup("Main", "TestPopUp", "UploadFile", popupUpload, nullptr);
 }
 
 void setupCounterPage()

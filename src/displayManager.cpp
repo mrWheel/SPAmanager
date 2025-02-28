@@ -55,70 +55,6 @@ void DisplayManager::setupWebServer()
 }
 
 
-void DisplayManager::includeJsScript(const char* scriptFile)
-{
-  debug(("DisplayManager::includeJsScript() called with scriptFile: [" + std::string(scriptFile) + "]").c_str());
-  if (hasConnectedClient)
-  {
-    // Check if script has already been served
-    std::string scriptPath(scriptFile);
-    if (servedScripts.find(scriptPath) != servedScripts.end()) {
-      debug(("Script [" + scriptPath + "] already served, skipping").c_str());
-      return;
-    }
-
-    const size_t capacity = JSON_OBJECT_SIZE(2);
-    DynamicJsonDocument doc(capacity);
-
-    doc["event"] = "includeJsScript";
-    doc["data"]  = scriptFile;
-
-    std::string output;
-    serializeJson(doc, output);
-
-    if (!output.empty())
-    {
-      server.serveStatic(scriptFile, LittleFS, scriptFile);
-      ws.broadcastTXT(output.c_str(), output.length());
-      servedScripts.insert(scriptPath);  // Mark script as served
-    }
-  }
-}
-
-void DisplayManager::callJsFunction(const char* functionName)
-{
-  debug(("DisplayManager::callJsFunction() called with function: " + std::string(functionName)).c_str());
-  if (hasConnectedClient)
-  {
-    const size_t capacity = JSON_OBJECT_SIZE(2); // Two key-value pairs
-    DynamicJsonDocument doc(capacity);
-
-    // Adjusted structure to match JavaScript expectation
-    doc["event"] = "callJsFunction";
-    doc["data"]  = functionName;
-
-    std::string output;
-    serializeJson(doc, output);
-
-    if (!output.empty())
-    {
-      ws.broadcastTXT(output.c_str(), output.length());
-    }
-  }
-}
-
-void DisplayManager::handleJsFunctionResult(const char* functionName, bool success)
-{
-  if (success)
-  {
-    debug(("JavaScript function [" + std::string(functionName) + "] executed successfully").c_str());
-  }
-  else
-  {
-    debug(("JavaScript function [" + std::string(functionName) + "] not found or failed to execute").c_str());
-  }
-}
-
 
 void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) 
 {
@@ -283,6 +219,30 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
           const char* popupId = doc["popupId"];
           debug(("WebSocket: process message received with type: " + std::string(processType) + " for popup: " + std::string(popupId)).c_str());
           
+          // Extract input values from the JSON message
+          std::map<std::string, std::string> inputValues;
+          debug("Extracting input values from JSON message");
+          if (doc.containsKey("inputValues")) {
+            debug("JSON contains inputValues key");
+            if (doc["inputValues"].is<JsonObject>()) {
+              debug("inputValues is a JSON object");
+              JsonObject inputObj = doc["inputValues"];
+              debug(("inputValues object has " + std::to_string(inputObj.size()) + " entries").c_str());
+              for (JsonPair kv : inputObj) {
+                inputValues[kv.key().c_str()] = kv.value().as<std::string>();
+                debug(("Input value: " + std::string(kv.key().c_str()) + " = " + kv.value().as<std::string>()).c_str());
+              }
+            } else {
+              debug("inputValues is NOT a JSON object");
+            }
+          } else {
+            debug("JSON does NOT contain inputValues key");
+            // Dump the JSON message for debugging
+            std::string jsonDump;
+            serializeJson(doc, jsonDump);
+            debug(("JSON message: " + jsonDump).c_str());
+          }
+          
           // Find the menu item that created this popup
           for (const auto& menu : menus) {
             for (const auto& item : menu.items) {
@@ -297,11 +257,13 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
               
               if (itemPopupId == popupId) {
                 // This is the menu item that created the popup
-                // Now we need to call its callback with the process type
-                // But we need to access the callback that was stored when addMenuItemPopup was called
-                // This requires modifying the addMenuItemPopup method to store the callback
-                // For now, we'll just log that we found the menu item
-                debug(("Found menu item for popup: " + itemPopupId).c_str());
+                // Call its popup callback if it exists
+                if (item.popupCallback) {
+                  debug(("Calling popup callback for: " + itemPopupId).c_str());
+                  item.popupCallback(inputValues);
+                } else {
+                  debug(("No popup callback found for: " + itemPopupId).c_str());
+                }
                 break;
               }
             }
@@ -713,7 +675,7 @@ void DisplayManager::addMenuItem(const char* pageName, const char* menuName, con
     }
 }
 
-void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const char*)> callback)
+void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback)
 {
   debug(("addMenuItemPopup() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", menuItem: " + std::string(menuItem)).c_str());
   
@@ -737,9 +699,10 @@ void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName
       MenuItem item;
       item.setName(menuItem);
       item.setUrl(nullptr);
+      item.popupCallback = callback;
       
       // Create a lambda that will call our JavaScript function with the popup content
-      item.callback = [this, popupId, popupMenu, callback]() {
+      item.callback = [this, popupId, popupMenu]() {
         // Create a JSON object with the popup content and configuration
         const size_t capacity = JSON_OBJECT_SIZE(3) + strlen(popupMenu) + 256;
         DynamicJsonDocument doc(capacity);
@@ -763,6 +726,54 @@ void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName
   }
 }
 
+
+void DisplayManager::enableMenuItem(const char* pageName, const char* menuName, const char* itemName)
+{
+    debug(("enableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
+    for (auto& menu : menus) 
+    {
+        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
+        {
+            for (auto& item : menu.items) 
+            {
+                if (strcmp(item.name, itemName) == 0) 
+                {
+                    item.disabled = false;
+                    if (activePage && strcmp(activePage->name, pageName) == 0) 
+                    {
+                        updateClients();
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+}
+
+void DisplayManager::disableMenuItem(const char* pageName, const char* menuName, const char* itemName)
+{
+    debug(("disableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
+    for (auto& menu : menus) 
+    {
+        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
+        {
+            for (auto& item : menu.items) 
+            {
+                if (strcmp(item.name, itemName) == 0) 
+                {
+                    item.disabled = true;
+                    if (activePage && strcmp(activePage->name, pageName) == 0) 
+                    {
+                        updateClients();
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+}
 
 void DisplayManager::enableID(const char* pageName, const char* id)
 {
@@ -898,6 +909,71 @@ void DisplayManager::disableID(const char* pageName, const char* id)
   }
 }
 
+
+void DisplayManager::includeJsScript(const char* scriptFile)
+{
+  debug(("DisplayManager::includeJsScript() called with scriptFile: [" + std::string(scriptFile) + "]").c_str());
+  if (hasConnectedClient)
+  {
+    // Check if script has already been served
+    std::string scriptPath(scriptFile);
+    if (servedScripts.find(scriptPath) != servedScripts.end()) {
+      debug(("Script [" + scriptPath + "] already served, skipping").c_str());
+      return;
+    }
+
+    const size_t capacity = JSON_OBJECT_SIZE(2);
+    DynamicJsonDocument doc(capacity);
+
+    doc["event"] = "includeJsScript";
+    doc["data"]  = scriptFile;
+
+    std::string output;
+    serializeJson(doc, output);
+
+    if (!output.empty())
+    {
+      server.serveStatic(scriptFile, LittleFS, scriptFile);
+      ws.broadcastTXT(output.c_str(), output.length());
+      servedScripts.insert(scriptPath);  // Mark script as served
+    }
+  }
+}
+
+void DisplayManager::callJsFunction(const char* functionName)
+{
+  debug(("DisplayManager::callJsFunction() called with function: " + std::string(functionName)).c_str());
+  if (hasConnectedClient)
+  {
+    const size_t capacity = JSON_OBJECT_SIZE(2); // Two key-value pairs
+    DynamicJsonDocument doc(capacity);
+
+    // Adjusted structure to match JavaScript expectation
+    doc["event"] = "callJsFunction";
+    doc["data"]  = functionName;
+
+    std::string output;
+    serializeJson(doc, output);
+
+    if (!output.empty())
+    {
+      ws.broadcastTXT(output.c_str(), output.length());
+    }
+  }
+}
+
+void DisplayManager::handleJsFunctionResult(const char* functionName, bool success)
+{
+  if (success)
+  {
+    debug(("JavaScript function [" + std::string(functionName) + "] executed successfully").c_str());
+  }
+  else
+  {
+    debug(("JavaScript function [" + std::string(functionName) + "] not found or failed to execute").c_str());
+  }
+}
+
 void DisplayManager::setMessage(const char* message, int duration) 
 {
     debug(("setMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
@@ -916,54 +992,6 @@ void DisplayManager::setErrorMessage(const char* message, int duration)
     isError = true;
     messageEndTime = duration > 0 ? millis() + (duration * 1000) : 0;
     updateClients();
-}
-
-void DisplayManager::enableMenuItem(const char* pageName, const char* menuName, const char* itemName)
-{
-    debug(("enableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
-    for (auto& menu : menus) 
-    {
-        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
-        {
-            for (auto& item : menu.items) 
-            {
-                if (strcmp(item.name, itemName) == 0) 
-                {
-                    item.disabled = false;
-                    if (activePage && strcmp(activePage->name, pageName) == 0) 
-                    {
-                        updateClients();
-                    }
-                    break;
-                }
-            }
-            break;
-        }
-    }
-}
-
-void DisplayManager::disableMenuItem(const char* pageName, const char* menuName, const char* itemName)
-{
-    debug(("disableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
-    for (auto& menu : menus) 
-    {
-        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
-        {
-            for (auto& item : menu.items) 
-            {
-                if (strcmp(item.name, itemName) == 0) 
-                {
-                    item.disabled = true;
-                    if (activePage && strcmp(activePage->name, pageName) == 0) 
-                    {
-                        updateClients();
-                    }
-                    break;
-                }
-            }
-            break;
-        }
-    }
 }
 
 void DisplayManager::updateClients() 

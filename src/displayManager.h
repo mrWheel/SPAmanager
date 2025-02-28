@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <set>
+#include <map>
 
 class DisplayManager 
 {
@@ -36,6 +37,7 @@ private:
         char name[MAX_NAME_LEN];
         char url[MAX_URL_LEN];
         std::function<void()> callback;
+        std::function<void(const std::map<std::string, std::string>&)> popupCallback; // Modified to accept input values
         bool disabled = false;
         
         void setName(const char* n) {
@@ -139,16 +141,16 @@ public:
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback);
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url);
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(uint8_t)> callback, uint8_t param);
-    void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const char*)> callback = nullptr);
+    void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback = nullptr);
     void disableMenuItem(const char* pageName, const char* menuName, const char* itemName);
     void enableMenuItem(const char* pageName, const char* menuName, const char* itemName);
+    void setPageTitle(const char* pageName, const char* title);
     void setMessage(const char* message, int duration);
     void setErrorMessage(const char* message, int duration);
-    void setPageTitle(const char* pageName, const char* title);
     void enableID(const char* pageName, const char* id);
     void disableID(const char* pageName, const char* id);
-    void callJsFunction(const char* functionName);
     void includeJsScript(const char* scriptFile);
+    void callJsFunction(const char* functionName);
     void pageIsLoaded(std::function<void()> callback);
 
 private:
