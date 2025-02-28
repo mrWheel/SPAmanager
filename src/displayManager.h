@@ -139,7 +139,7 @@ public:
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback);
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url);
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(uint8_t)> callback, uint8_t param);
-    void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu);
+    void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const char*)> callback = nullptr);
     void disableMenuItem(const char* pageName, const char* menuName, const char* itemName);
     void enableMenuItem(const char* pageName, const char* menuName, const char* itemName);
     void setMessage(const char* message, int duration);

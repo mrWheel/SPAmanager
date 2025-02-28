@@ -196,22 +196,28 @@ void setupMainPage()
     dm.addMenu("Main", "TestPopUp");
     const char *popupInput = R"HTML(
       <div style="font-size: 48px; text-align: center; font-weight: bold;">Input Fields</div>
-      <label for="fsm_input1">Input 1:</label>
-      <input type="number" step="1" id="fsm_input1" placeholder="integer value">
+      <label for="input1">Input 1:</label>
+      <input type="number" step="1" id="input1" placeholder="integer value">
       <br>
-      <label for="input2">Input 1:</label>
+      <label for="input2">Input 2:</label>
       <input type="text" id="input2" placeholder="text value">
       <br>
-      <button type="button" onClick=“cancel’>Cancel</button>
-      <button type="button" onClick=“proceed(input1, input2)”>Proceed</button>
+      <button type="button" onClick="closePopup('popup_TestPopUp_InputFields')">Cancel</button>
+      <button type="button" id="proceedButton" onClick="processAction('proceed')">Proceed</button>
+
     )HTML";
-  
-    dm.addMenuItemPopup("Main", "TestPopUp", "InputFields", popupInput);
+      
+    dm.addMenuItemPopup("Main", "TestPopUp", "InputFields", popupInput, [](const char* processType) {
+      if (strcmp(processType, "proceed") == 0) {
+        debug->println("Process callback: proceed action received");
+        // Add code to handle proceed action
+      }
+    });
     const char *popupUpload = R"HTML(
         <div style="font-size: 48px; text-align: center; font-weight: bold;">sometxt</div>
         <input type="file" id="filePopup1" onchange="uploadFile(this.files[0])">
       )HTML";
-      dm.addMenuItemPopup("Main", "TestPopUp", "UploadFile", popupUpload);
+    dm.addMenuItemPopup("Main", "TestPopUp", "UploadFile", popupUpload);
 }
 
 void setupCounterPage()

@@ -33,7 +33,7 @@
                         return;
                     }
                     if (data.event === 'callJsFunction') {
-                        //console.log('addEventListener(): callJsFunction:', data.data);
+                        console.log('addEventListener(): callJsFunction:', data.data);
                         handleEvent('callJsFunction', data.data);
                         return;
                     }
@@ -462,6 +462,19 @@
         popupOverlay.appendChild(popupContent);
       }
 
+      function processAction(processType) {
+        console.log('Processing action:', processType);
+        ws.send(JSON.stringify({
+          type: 'process',
+          processType: processType,
+          popupId: document.querySelector('.popup-overlay')?.id.replace('_overlay', '')
+        }));
+      }
+
+      function proceed() {
+        console.log('Proceeding...');
+        processAction('proceed');
+      }
 
     </script>
 </head>

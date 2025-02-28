@@ -11,6 +11,7 @@ DisplayManager::DisplayManager(uint16_t port)
     , debugOut(nullptr)
     , currentClient(0)
     , hasConnectedClient(false)
+    , pageLoadedCallback(nullptr)
     , currentMessage{0}
     , isError(false)
     , messageEndTime(0)
@@ -277,6 +278,35 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
           // Call the existing handleJsFunctionResult method
           handleJsFunctionResult(functionName, success);
         }
+        else if (doc["type"] == "process") {
+          const char* processType = doc["processType"];
+          const char* popupId = doc["popupId"];
+          debug(("WebSocket: process message received with type: " + std::string(processType) + " for popup: " + std::string(popupId)).c_str());
+          
+          // Find the menu item that created this popup
+          for (const auto& menu : menus) {
+            for (const auto& item : menu.items) {
+              // Check if this item's callback is a popup callback
+              std::string itemPopupId = std::string("popup_") + menu.name + "_" + item.name;
+              // Replace spaces with underscores
+              for (size_t i = 0; i < itemPopupId.length(); i++) {
+                if (itemPopupId[i] == ' ') {
+                  itemPopupId[i] = '_';
+                }
+              }
+              
+              if (itemPopupId == popupId) {
+                // This is the menu item that created the popup
+                // Now we need to call its callback with the process type
+                // But we need to access the callback that was stored when addMenuItemPopup was called
+                // This requires modifying the addMenuItemPopup method to store the callback
+                // For now, we'll just log that we found the menu item
+                debug(("Found menu item for popup: " + itemPopupId).c_str());
+                break;
+              }
+            }
+          }
+        }
     }
 
   } // onWebSocketEvent()
@@ -366,6 +396,24 @@ void DisplayManager::addPage(const char* pageName, const char* html)
         }
     }
 }
+
+void DisplayManager::setPageTitle(const char* pageName, const char* title)
+{
+  debug(("setPageTitle() called with pageName: " + std::string(pageName) + ", title: " + std::string(title)).c_str());
+  for (auto& page : pages) 
+  {
+    if (strcmp(page.name, pageName) == 0) 
+    {
+      page.setTitle(title);
+      if (activePage && strcmp(activePage->name, pageName) == 0) 
+      {
+        setHeaderTitle(title);
+      }
+      break;
+    }
+  }
+}
+
 
 template <typename T>
 void DisplayManager::setPlaceholder(const char* pageName, const char* placeholder, T value) {
@@ -502,6 +550,81 @@ void DisplayManager::setPlaceholder<const char*>(const char* pageName, const cha
     }
 }
 
+DisplayManager::PlaceholderValue DisplayManager::getPlaceholder(const char* pageName, const char* placeholder)
+{
+  debug((std::string("getPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
+  std::string value = "";
+  
+  for (const auto& page : pages)
+  {
+    if (strcmp(page.name, pageName) == 0)
+    {
+      std::string content = page.getContent();
+      std::string idStr1 = std::string("id='") + placeholder + "'";
+      std::string idStr2 = std::string("id=\"") + placeholder + "\"";
+      size_t pos = content.find(idStr1);
+      if (pos == std::string::npos) {
+          pos = content.find(idStr2);
+      }
+      
+      if (pos != std::string::npos)
+      {
+        // Check if it's an input field
+        size_t inputStart = content.rfind("<input", pos);
+        if (inputStart != std::string::npos && inputStart < pos)
+        {
+          // Find value attribute with single or double quotes
+          size_t valueStart1 = content.find("value='", inputStart);
+          size_t valueStart2 = content.find("value=\"", inputStart);
+          size_t closingBracket = content.find(">", inputStart);
+          
+          if (valueStart1 != std::string::npos && valueStart1 < closingBracket)
+          {
+            valueStart1 += 7; // Length of "value='"
+            size_t valueEnd = content.find("'", valueStart1);
+            if (valueEnd != std::string::npos)
+            {
+              value = content.substr(valueStart1, valueEnd - valueStart1);
+            }
+          }
+          else if (valueStart2 != std::string::npos && valueStart2 < closingBracket)
+          {
+            valueStart2 += 7; // Length of "value=\""
+            size_t valueEnd = content.find("\"", valueStart2);
+            if (valueEnd != std::string::npos)
+            {
+              value = content.substr(valueStart2, valueEnd - valueStart2);
+            }
+          }
+        }
+        else
+        {
+          // For non-input elements, get content between tags
+          size_t start = content.find('>', pos) + 1;
+          size_t end = content.find('<', start);
+          
+          if (start != std::string::npos && end != std::string::npos)
+          {
+            value = content.substr(start, end - start);
+          }
+        }
+        // Trim whitespace
+        value.erase(0, value.find_first_not_of(" \t\n\r\f\v"));
+        value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1);
+      }
+      break;
+    }
+  }
+  
+  return PlaceholderValue(value.c_str());
+}
+
+// Explicit template instantiations for setPlaceholder
+template void DisplayManager::setPlaceholder<unsigned int>(const char*, const char*, unsigned int);
+template void DisplayManager::setPlaceholder<int>(const char*, const char*, int);
+template void DisplayManager::setPlaceholder<float>(const char*, const char*, float);
+template void DisplayManager::setPlaceholder<double>(const char*, const char*, double);
+
 void DisplayManager::activatePage(const char* pageName) 
 {
     debug(("activatePage() called with pageName: " + std::string(pageName)).c_str());
@@ -590,205 +713,56 @@ void DisplayManager::addMenuItem(const char* pageName, const char* menuName, con
     }
 }
 
-
-
-void DisplayManager::setMessage(const char* message, int duration) 
+void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const char*)> callback)
 {
-    debug(("setMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
-    strncpy(currentMessage, message, MAX_MESSAGE_LEN-1);
-    currentMessage[MAX_MESSAGE_LEN-1] = '\0';
-    isError = false;
-    messageEndTime = duration > 0 ? millis() + (duration * 1000) : 0;
-    updateClients();
-}
-
-void DisplayManager::setErrorMessage(const char* message, int duration) 
-{
-    debug(("setErrorMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
-    strncpy(currentMessage, message, MAX_MESSAGE_LEN-1);
-    currentMessage[MAX_MESSAGE_LEN-1] = '\0';
-    isError = true;
-    messageEndTime = duration > 0 ? millis() + (duration * 1000) : 0;
-    updateClients();
-}
-
-void DisplayManager::enableMenuItem(const char* pageName, const char* menuName, const char* itemName)
-{
-    debug(("enableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
-    for (auto& menu : menus) 
-    {
-        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
-        {
-            for (auto& item : menu.items) 
-            {
-                if (strcmp(item.name, itemName) == 0) 
-                {
-                    item.disabled = false;
-                    if (activePage && strcmp(activePage->name, pageName) == 0) 
-                    {
-                        updateClients();
-                    }
-                    break;
-                }
-            }
-            break;
-        }
-    }
-}
-
-void DisplayManager::disableMenuItem(const char* pageName, const char* menuName, const char* itemName)
-{
-    debug(("disableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
-    for (auto& menu : menus) 
-    {
-        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
-        {
-            for (auto& item : menu.items) 
-            {
-                if (strcmp(item.name, itemName) == 0) 
-                {
-                    item.disabled = true;
-                    if (activePage && strcmp(activePage->name, pageName) == 0) 
-                    {
-                        updateClients();
-                    }
-                    break;
-                }
-            }
-            break;
-        }
-    }
-}
-
-void DisplayManager::updateClients() 
-{
-    if (messageEndTime > 0 && millis() >= messageEndTime) 
-    {
-        currentMessage[0] = '\0';
-        messageEndTime = 0;
-    }
-    broadcastState();
-}
-
-void DisplayManager::debug(const char* message) 
-{
-    if (debugOut) 
-    {
-        debugOut->println(message);
-    }
-}
-
-DisplayManager::PlaceholderValue DisplayManager::getPlaceholder(const char* pageName, const char* placeholder)
-{
-  debug((std::string("getPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
-  std::string value = "";
+  debug(("addMenuItemPopup() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", menuItem: " + std::string(menuItem)).c_str());
   
-  for (const auto& page : pages)
+  for (auto& menu : menus)
   {
-    if (strcmp(page.name, pageName) == 0)
+    if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0)
     {
-      std::string content = page.getContent();
-      std::string idStr1 = std::string("id='") + placeholder + "'";
-      std::string idStr2 = std::string("id=\"") + placeholder + "\"";
-      size_t pos = content.find(idStr1);
-      if (pos == std::string::npos) {
-          pos = content.find(idStr2);
+      // Create a unique ID for this popup
+      std::string popupId = std::string("popup_") + menuName + "_" + menuItem;
+      
+      // Replace any spaces with underscores in the ID
+      for (size_t i = 0; i < popupId.length(); i++)
+      {
+        if (popupId[i] == ' ')
+        {
+          popupId[i] = '_';
+        }
       }
       
-      if (pos != std::string::npos)
-      {
-        // Check if it's an input field
-        size_t inputStart = content.rfind("<input", pos);
-        if (inputStart != std::string::npos && inputStart < pos)
+      // Create a menu item with a callback that calls the show popup function
+      MenuItem item;
+      item.setName(menuItem);
+      item.setUrl(nullptr);
+      
+      // Create a lambda that will call our JavaScript function with the popup content
+      item.callback = [this, popupId, popupMenu, callback]() {
+        // Create a JSON object with the popup content and configuration
+        const size_t capacity = JSON_OBJECT_SIZE(3) + strlen(popupMenu) + 256;
+        DynamicJsonDocument doc(capacity);
+        
+        doc["event"] = "showPopup";
+        doc["id"] = popupId;
+        doc["content"] = popupMenu;
+        
+        std::string output;
+        serializeJson(doc, output);
+        
+        if (!output.empty() && hasConnectedClient)
         {
-          // Find value attribute with single or double quotes
-          size_t valueStart1 = content.find("value='", inputStart);
-          size_t valueStart2 = content.find("value=\"", inputStart);
-          size_t closingBracket = content.find(">", inputStart);
-          
-          if (valueStart1 != std::string::npos && valueStart1 < closingBracket)
-          {
-            valueStart1 += 7; // Length of "value='"
-            size_t valueEnd = content.find("'", valueStart1);
-            if (valueEnd != std::string::npos)
-            {
-              value = content.substr(valueStart1, valueEnd - valueStart1);
-            }
-          }
-          else if (valueStart2 != std::string::npos && valueStart2 < closingBracket)
-          {
-            valueStart2 += 7; // Length of "value=\""
-            size_t valueEnd = content.find("\"", valueStart2);
-            if (valueEnd != std::string::npos)
-            {
-              value = content.substr(valueStart2, valueEnd - valueStart2);
-            }
-          }
+          ws.broadcastTXT(output.c_str(), output.length());
         }
-        else
-        {
-          // For non-input elements, get content between tags
-          size_t start = content.find('>', pos) + 1;
-          size_t end = content.find('<', start);
-          
-          if (start != std::string::npos && end != std::string::npos)
-          {
-            value = content.substr(start, end - start);
-          }
-        }
-        // Trim whitespace
-        value.erase(0, value.find_first_not_of(" \t\n\r\f\v"));
-        value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1);
-      }
-      break;
-    }
-  }
-  
-  return PlaceholderValue(value.c_str());
-}
-
-// Explicit template instantiations for setPlaceholder
-template void DisplayManager::setPlaceholder<unsigned int>(const char*, const char*, unsigned int);
-template void DisplayManager::setPlaceholder<int>(const char*, const char*, int);
-template void DisplayManager::setPlaceholder<float>(const char*, const char*, float);
-template void DisplayManager::setPlaceholder<double>(const char*, const char*, double);
-
-void DisplayManager::setHeaderTitle(const char* title)
-{
-  debug(("setHeaderTitle() called with title: " + std::string(title)).c_str());
-  
-  const size_t capacity = JSON_OBJECT_SIZE(3) + 256;
-  DynamicJsonDocument doc(capacity);
-  
-  doc["type"] = "update";
-  doc["target"] = "title";
-  doc["content"] = title;
-  
-  std::string output;
-  serializeJson(doc, output);
-  
-  if (!output.empty()) 
-  {
-    ws.broadcastTXT(output.c_str(), output.length());
-  }
-}
-
-void DisplayManager::setPageTitle(const char* pageName, const char* title)
-{
-  debug(("setPageTitle() called with pageName: " + std::string(pageName) + ", title: " + std::string(title)).c_str());
-  for (auto& page : pages) 
-  {
-    if (strcmp(page.name, pageName) == 0) 
-    {
-      page.setTitle(title);
-      if (activePage && strcmp(activePage->name, pageName) == 0) 
-      {
-        setHeaderTitle(title);
-      }
+      };
+      
+      menu.items.push_back(item);
       break;
     }
   }
 }
+
 
 void DisplayManager::enableID(const char* pageName, const char* id)
 {
@@ -924,167 +898,244 @@ void DisplayManager::disableID(const char* pageName, const char* id)
   }
 }
 
-std::string DisplayManager::generateHTML() 
+void DisplayManager::setMessage(const char* message, int duration) 
 {
-    debug("generateHTML() called");
-    
-    File file = LittleFS.open("/displayManager.html", "r");
-    if (!file)
-    {
-        debug("Failed to open displayManager.html");
-        return "";
-    }
-    
-    std::string html = file.readString().c_str();
-    file.close();
-    
-    // Find the bodyContent div and insert the page content
-    const char* pageContent = activePage ? activePage->getContent() : "";
-    size_t pos = html.find("<div id=\"bodyContent\"");
-    if (pos != std::string::npos)
-    {
-        pos = html.find(">", pos) + 1;
-        size_t endPos = html.find("</div>", pos);
-        if (pos != std::string::npos && endPos != std::string::npos)
-        {
-            html.replace(pos, endPos - pos, pageContent);
-        }
-    }
-    
-    return html;
+    debug(("setMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
+    strncpy(currentMessage, message, MAX_MESSAGE_LEN-1);
+    currentMessage[MAX_MESSAGE_LEN-1] = '\0';
+    isError = false;
+    messageEndTime = duration > 0 ? millis() + (duration * 1000) : 0;
+    updateClients();
 }
 
-std::string DisplayManager::generateMenuHTML() 
+void DisplayManager::setErrorMessage(const char* message, int duration) 
 {
-    debug("generateMenuHTML() called");
-    std::string html;
-    html.reserve(4096);
-    
-    if (!activePage) 
-    {
-        debug("No active page, skipping menu generation");
-        return html;
-    }
+    debug(("setErrorMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
+    strncpy(currentMessage, message, MAX_MESSAGE_LEN-1);
+    currentMessage[MAX_MESSAGE_LEN-1] = '\0';
+    isError = true;
+    messageEndTime = duration > 0 ? millis() + (duration * 1000) : 0;
+    updateClients();
+}
 
-    debug(("Generating menus for page: " + std::string(activePage->name)).c_str());
-    
-    bool hasMenus = false;
-    for (const auto& menu : menus) 
+void DisplayManager::enableMenuItem(const char* pageName, const char* menuName, const char* itemName)
+{
+    debug(("enableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
+    for (auto& menu : menus) 
     {
-        if (strcmp(menu.pageName, activePage->name) == 0)
+        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
         {
-            hasMenus = true;
-            debug(("Adding menu: " + std::string(menu.name)).c_str());
-            
-            html += "<div class='dM_dropdown'><span>";
-            html += menu.name;
-            html += "</span><ul class='dM_dropdown-menu'>";
-    
-            for (const auto& item : menu.items) 
+            for (auto& item : menu.items) 
             {
-                html += "<li";
-                if (item.disabled) 
+                if (strcmp(item.name, itemName) == 0) 
                 {
-                    html += " class='disabled'";
-                }
-                html += ">";
-                
-                if (item.hasUrl()) 
-                {
-                    html += "<a data-menu='";
-                    html += menu.name;
-                    html += "' data-item='";
-                    html += item.name;
-                    html += "' href='";
-                    html += item.url;
-                    html += "'>";
-                    html += item.name;
-                    html += "</a>";
-                } 
-                else 
-                {
-                    html += "<span data-menu='";
-                    html += menu.name;
-                    html += "' data-item='";
-                    html += item.name;
-                    html += "'";
-                    if (!item.disabled) {
-                        html += " onclick='handleMenuClick(\"";
-                        html += menu.name;
-                        html += "\", \"";
-                        html += item.name;
-                        html += "\")'";
+                    item.disabled = false;
+                    if (activePage && strcmp(activePage->name, pageName) == 0) 
+                    {
+                        updateClients();
                     }
-                    html += ">";
-                    html += item.name;
-                    html += "</span>";
+                    break;
                 }
-                html += "</li>";
             }
-            html += "</ul></div>";
+            break;
         }
     }
-    
-    if (!hasMenus) {
-        debug(("No menus found for active page: " + std::string(activePage->name)).c_str());
-    }
-    
-    return html;
 }
+
+void DisplayManager::disableMenuItem(const char* pageName, const char* menuName, const char* itemName)
+{
+    debug(("disableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
+    for (auto& menu : menus) 
+    {
+        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
+        {
+            for (auto& item : menu.items) 
+            {
+                if (strcmp(item.name, itemName) == 0) 
+                {
+                    item.disabled = true;
+                    if (activePage && strcmp(activePage->name, pageName) == 0) 
+                    {
+                        updateClients();
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+}
+
+void DisplayManager::updateClients() 
+{
+    if (messageEndTime > 0 && millis() >= messageEndTime) 
+    {
+        currentMessage[0] = '\0';
+        messageEndTime = 0;
+    }
+    broadcastState();
+}
+
+void DisplayManager::debug(const char* message) 
+{
+    if (debugOut) 
+    {
+        debugOut->println(message);
+    }
+}
+
+/*** 
+DisplayManager::PlaceholderValue DisplayManager::getPlaceholder(const char* pageName, const char* placeholder)
+{
+  debug((std::string("getPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
+  std::string value = "";
+  
+  for (const auto& page : pages)
+  {
+    if (strcmp(page.name, pageName) == 0)
+    {
+      std::string content = page.getContent();
+      std::string idStr1 = std::string("id='") + placeholder + "'";
+      std::string idStr2 = std::string("id=\"") + placeholder + "\"";
+      size_t pos = content.find(idStr1);
+      if (pos == std::string::npos) {
+          pos = content.find(idStr2);
+      }
+      
+      if (pos != std::string::npos)
+      {
+        // Check if it's an input field
+        size_t inputStart = content.rfind("<input", pos);
+        if (inputStart != std::string::npos && inputStart < pos)
+        {
+          // Find value attribute with single or double quotes
+          size_t valueStart1 = content.find("value='", inputStart);
+          size_t valueStart2 = content.find("value=\"", inputStart);
+          size_t closingBracket = content.find(">", inputStart);
+          
+          if (valueStart1 != std::string::npos && valueStart1 < closingBracket)
+          {
+            valueStart1 += 7; // Length of "value='"
+            size_t valueEnd = content.find("'", valueStart1);
+            if (valueEnd != std::string::npos)
+            {
+              value = content.substr(valueStart1, valueEnd - valueStart1);
+            }
+          }
+          else if (valueStart2 != std::string::npos && valueStart2 < closingBracket)
+          {
+            valueStart2 += 7; // Length of "value=\""
+            size_t valueEnd = content.find("\"", valueStart2);
+            if (valueEnd != std::string::npos)
+            {
+              value = content.substr(valueStart2, valueEnd - valueStart2);
+            }
+          }
+        }
+        else
+        {
+          // For non-input elements, get content between tags
+          size_t start = content.find('>', pos) + 1;
+          size_t end = content.find('<', start);
+          
+          if (start != std::string::npos && end != std::string::npos)
+          {
+            value = content.substr(start, end - start);
+          }
+        }
+        break;
+      }
+    }
+  }
+  
+  return PlaceholderValue(value.c_str());
+}
+***/
 
 void DisplayManager::pageIsLoaded(std::function<void()> callback)
 {
-  debug("pageIsLoaded(): called");
-  servedScripts.clear();
+  debug("pageIsLoaded() called");
   pageLoadedCallback = callback;
 }
 
-void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu)
+void DisplayManager::setHeaderTitle(const char* title)
 {
-  debug(("addMenuItemPopup() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", menuItem: " + std::string(menuItem)).c_str());
-  
-  for (auto& menu : menus)
+  debug(("setHeaderTitle() called with title: " + std::string(title)).c_str());
+  if (hasConnectedClient)
   {
-    if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0)
+    const size_t capacity = JSON_OBJECT_SIZE(3) + 256;
+    DynamicJsonDocument doc(capacity);
+    
+    doc["type"] = "update";
+    doc["target"] = "title";
+    doc["content"] = title;
+    
+    std::string output;
+    serializeJson(doc, output);
+    
+    if (!output.empty())
     {
-      // Create a unique ID for this popup
-      std::string popupId = std::string("popup_") + menuName + "_" + menuItem;
-      
-      // Replace any spaces with underscores in the ID
-      for (size_t i = 0; i < popupId.length(); i++)
-      {
-        if (popupId[i] == ' ')
-        {
-          popupId[i] = '_';
-        }
-      }
-      
-      // Create a menu item with a callback that calls the show popup function
-      MenuItem item;
-      item.setName(menuItem);
-      item.setUrl(nullptr);
-      
-      // Create a lambda that will call our JavaScript function with the popup content
-      item.callback = [this, popupId, popupMenu]() {
-        // Create a JSON object with the popup content and configuration
-        const size_t capacity = JSON_OBJECT_SIZE(3) + strlen(popupMenu) + 256;
-        DynamicJsonDocument doc(capacity);
-        
-        doc["event"] = "showPopup";
-        doc["id"] = popupId;
-        doc["content"] = popupMenu;
-        
-        std::string output;
-        serializeJson(doc, output);
-        
-        if (!output.empty() && hasConnectedClient)
-        {
-          ws.broadcastTXT(output.c_str(), output.length());
-        }
-      };
-      
-      menu.items.push_back(item);
-      break;
+      ws.broadcastTXT(output.c_str(), output.length());
     }
   }
+}
+
+std::string DisplayManager::generateHTML()
+{
+  debug("generateHTML() called");
+  return R"HTML(
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display Manager</title>
+    <link rel="stylesheet" href="/displayManager.css">
+</head>
+<body>
+    <script>
+        window.location.href = "/displayManager.html";
+    </script>
+</body>
+</html>
+)HTML";
+}
+
+std::string DisplayManager::generateMenuHTML()
+{
+  debug("generateMenuHTML() called");
+  std::string menuHTML = "";
+  
+  for (const auto& menu : menus)
+  {
+    if (activePage && strcmp(menu.pageName, activePage->name) == 0)
+    {
+      menuHTML += "<div class=\"dM_dropdown\"><span>" + std::string(menu.name) + "</span><ul class=\"dM_dropdown-menu\">";
+      
+      for (const auto& item : menu.items)
+      {
+        menuHTML += "<li" + std::string(item.disabled ? " class=\"disabled\"" : "") + ">";
+        
+        if (item.hasUrl())
+        {
+          menuHTML += "<a href=\"" + std::string(item.url) + "\">" + std::string(item.name) + "</a>";
+        }
+        else
+        {
+          menuHTML += "<span data-menu=\"" + std::string(menu.name) + "\" data-item=\"" + std::string(item.name) + "\"";
+          if (!item.disabled)
+          {
+            menuHTML += " onclick=\"handleMenuClick('" + std::string(menu.name) + "', '" + std::string(item.name) + "')\"";
+          }
+          menuHTML += ">" + std::string(item.name) + "</span>";
+        }
+        
+        menuHTML += "</li>";
+      }
+      
+      menuHTML += "</ul></div>";
+    }
+  }
+  
+  return menuHTML;
 }
