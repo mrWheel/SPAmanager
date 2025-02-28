@@ -37,6 +37,11 @@
                         handleEvent('callJsFunction', data.data);
                         return;
                     }
+                    if (data.event === 'showPopup') {
+                        console.log('addEventListener(): showPopup:', data.id);
+                        handleEvent('showPopup', data);
+                        return;
+                    }
                     // Handle Redirect
                     if (data.type === 'redirect') {
                         window.location.href = data.url;
@@ -198,6 +203,10 @@
                         document.body.appendChild(script);
                     });
                     break;
+                case 'showPopup':
+                    console.log('Handling showPopup:', data.id);
+                    showPopup(data.id, data.content);
+                    break;
                 default:
                     console.warn('Unhandled event type:', eventType);
             }
@@ -350,6 +359,109 @@
           }
         });
       }
+
+      // Function to handle popup windows
+      function showPopup(id, content) {
+        const popupOverlay = document.createElement('div');
+        popupOverlay.className = 'popup-overlay';
+        popupOverlay.id = id + '_overlay';
+        popupOverlay.style.position = 'fixed';
+        popupOverlay.style.top = '0';
+        popupOverlay.style.left = '0';
+        popupOverlay.style.width = '100%';
+        popupOverlay.style.height = '100%';
+        popupOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        popupOverlay.style.zIndex = '1000';
+        popupOverlay.style.display = 'flex';
+        popupOverlay.style.justifyContent = 'center';
+        popupOverlay.style.alignItems = 'center';
+
+        const popupContent = document.createElement('div');
+        popupContent.className = 'popup-content';
+        popupContent.id = id + '_content';
+        popupContent.style.backgroundColor = 'white';
+        popupContent.style.padding = '20px';
+        popupContent.style.borderRadius = '5px';
+        popupContent.style.maxWidth = '80%';
+        popupContent.style.maxHeight = '80%';
+        popupContent.style.overflow = 'auto';
+        popupContent.style.position = 'relative';
+
+        popupContent.innerHTML = content;
+
+        // Add close function
+        window.closePopup = function(popupId) {
+          const overlay = document.getElementById(popupId + '_overlay');
+          if (overlay) {
+            document.body.removeChild(overlay);
+          }
+        };
+
+        // Handle file upload if present
+        const fileInput = popupContent.querySelector('input[type="file"]');
+        if (fileInput) {
+          fileInput.onchange = function(event) {
+            if (this.files.length > 0) {
+              // Extract the function name from the onchange attribute
+              const onchangeAttr = fileInput.getAttribute('onchange');
+              if (onchangeAttr) {
+                const funcMatch = onchangeAttr.match(/(\w+)\s*\(/);
+                if (funcMatch && funcMatch[1]) {
+                  const funcName = funcMatch[1];
+                  // Store the file in a global variable so the function can access it
+                  window.selectedFile = this.files[0];
+                  // Call the function using callJsFunction mechanism
+                  if (typeof window[funcName] === 'function') {
+                    window[funcName](this.files[0]);
+                  }
+                }
+              }
+              window.closePopup(id);
+            }
+          };
+        }
+
+        // Handle buttons with onClick attributes
+        const buttons = popupContent.querySelectorAll('button[onClick]');
+        buttons.forEach(button => {
+          const onClickAttr = button.getAttribute('onClick');
+          if (onClickAttr) {
+            button.onclick = function(event) {
+              // Parse the onClick attribute to extract function name and parameters
+              const funcMatch = onClickAttr.match(/(\w+)\s*\(([^)]*)\)/);
+              if (funcMatch) {
+                const funcName = funcMatch[1];
+                const params = funcMatch[2].split(',').map(p => p.trim());
+                
+                // If parameters are specified, collect their values
+                const paramValues = [];
+                params.forEach(param => {
+                  if (param) {
+                    const inputElem = document.getElementById(param);
+                    if (inputElem) {
+                      paramValues.push(inputElem.value);
+                    } else {
+                      paramValues.push(param); // Use the parameter name as a literal if no element found
+                    }
+                  }
+                });
+                
+                // Call the function with the collected parameters
+                if (typeof window[funcName] === 'function') {
+                  window[funcName](...paramValues);
+                }
+              }
+              
+              // Close the popup
+              window.closePopup(id);
+            };
+          }
+        });
+
+        document.body.appendChild(popupOverlay);
+        popupOverlay.appendChild(popupContent);
+      }
+
 
     </script>
 </head>

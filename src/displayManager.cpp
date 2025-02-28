@@ -590,6 +590,8 @@ void DisplayManager::addMenuItem(const char* pageName, const char* menuName, con
     }
 }
 
+
+
 void DisplayManager::setMessage(const char* message, int duration) 
 {
     debug(("setMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
@@ -1035,4 +1037,54 @@ void DisplayManager::pageIsLoaded(std::function<void()> callback)
   debug("pageIsLoaded(): called");
   servedScripts.clear();
   pageLoadedCallback = callback;
+}
+
+void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu)
+{
+  debug(("addMenuItemPopup() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", menuItem: " + std::string(menuItem)).c_str());
+  
+  for (auto& menu : menus)
+  {
+    if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0)
+    {
+      // Create a unique ID for this popup
+      std::string popupId = std::string("popup_") + menuName + "_" + menuItem;
+      
+      // Replace any spaces with underscores in the ID
+      for (size_t i = 0; i < popupId.length(); i++)
+      {
+        if (popupId[i] == ' ')
+        {
+          popupId[i] = '_';
+        }
+      }
+      
+      // Create a menu item with a callback that calls the show popup function
+      MenuItem item;
+      item.setName(menuItem);
+      item.setUrl(nullptr);
+      
+      // Create a lambda that will call our JavaScript function with the popup content
+      item.callback = [this, popupId, popupMenu]() {
+        // Create a JSON object with the popup content and configuration
+        const size_t capacity = JSON_OBJECT_SIZE(3) + strlen(popupMenu) + 256;
+        DynamicJsonDocument doc(capacity);
+        
+        doc["event"] = "showPopup";
+        doc["id"] = popupId;
+        doc["content"] = popupMenu;
+        
+        std::string output;
+        serializeJson(doc, output);
+        
+        if (!output.empty() && hasConnectedClient)
+        {
+          ws.broadcastTXT(output.c_str(), output.length());
+        }
+      };
+      
+      menu.items.push_back(item);
+      break;
+    }
+  }
 }
