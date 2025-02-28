@@ -208,6 +208,7 @@ function loadFileList() {
           if (spaceInfo) {
               var availableSpace = data.totalSpace - data.usedSpace;
               spaceInfo.textContent = 'FileSystem uses ' + formatSize(data.usedSpace) + ' of ' + formatSize(data.totalSpace) + ' (' + formatSize(availableSpace) + ' available)';
+              spaceInfo.style.display = 'block';
           } else {
               console.error('fsm_spaceInfo element not found in DOM');
           }

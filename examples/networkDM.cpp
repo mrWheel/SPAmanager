@@ -148,14 +148,14 @@ void handleFSmanagerMenu(uint8_t param)
               dm.setMessage("FS Manager : List LittleFS Clicked!", 5);
               dm.disableID("FSmanagerPage", "fsm_addFolder");
               dm.disableID("FSmanagerPage", "fsm_fileUpload");
-              dm.enableID("FSmanagerPage",  "fsm_spaceInfo");
+//            dm.enableID("FSmanagerPage",  "fsm_spaceInfo");
               dm.enableID("FSmanagerPage",  "fsm_fileList");
               dm.callJsFunction("loadFileList");
             }
             break;
     case 2: {
               dm.setMessage("FS Manager : Upload File Clicked!", 5);
-              dm.disableID("FSmanagerPage", "fsm_spaceInfo");
+//            dm.disableID("FSmanagerPage", "fsm_spaceInfo");
               dm.disableID("FSmanagerPage", "fsm_fileList");
               dm.disableID("FSmanagerPage", "fsm_addFolder");
               dm.enableID("FSmanagerPage",  "fsm_fileUpload");
@@ -260,7 +260,7 @@ void setupFSmanagerPage()
 <div id="fsm_addFolder" class="dM_space-info" style="display: none;">
   <input type="text" placeholder="Enter new folder name" onchange="addFolder(this.files[0])">
 </div>
-<div id="fsm_spaceInfo" class="dM_space-info" style="display: none;">
+<div id="fsm_spaceInfo" class="dM_space-info" style="display: block;">
   <!-- Space information will be displayed here -->
 </div>    )HTML";
   
