@@ -31,9 +31,9 @@ void pageIsLoadedCallback()
 {
   dm.setMessage("Page is loaded!", 5);
   debug->println("pageIsLoadedCallback(): Page is loaded callback executed");
-  dm.includeJsScript("/fsManager.js");
-  debug->println("pageIsLoadedCallback(): Included '/fsManager.js'");
-  fsManager.addSystemFile("fsManager.js");
+  dm.includeJsScript("/FSmanager.js");
+  debug->println("pageIsLoadedCallback(): Included '/FSmanager.js'");
+  fsManager.addSystemFile("FSmanager.js");
 
 } 
 
@@ -166,9 +166,8 @@ void processInputCallback(const std::map<std::string, std::string>& inputValues)
 
 void doJsFunction()
 {
-    dm.setMessage("Main Menu \"logSomeMessagesn\" clicked!", 5);
-    //dm.includeJsScript("/fsManager.js");
-    dm.callJsFunction("logSomeMessages");
+    dm.setMessage("Main Menu \"isFSmanagerLoaded\" clicked!", 5);
+    dm.callJsFunction("isFSmanagerLoaded");
 }
 
 void handleFSmanagerMenu(uint8_t param)
@@ -223,7 +222,7 @@ void setupMainPage()
     dm.addMenuItem("Main", "Main Menu", "StopWatch", mainCallback1);
     dm.addMenuItem("Main", "Main Menu", "InputTest", mainCallback2);
     dm.addMenuItem("Main", "Main Menu", "FSmanager", mainCallback3);
-    dm.addMenuItem("Main", "Main Menu", "logSomeMessages", doJsFunction);
+    dm.addMenuItem("Main", "Main Menu", "isFSmanagerLoaded", doJsFunction);
     dm.addMenu("Main", "TestPopUp");
     const char *popup5Input = R"HTML(
       <div style="font-size: 48px; text-align: center; font-weight: bold;">Five Input Fields</div>
@@ -346,7 +345,7 @@ void setupFSmanagerPage()
     dm.addMenuItem("FSmanagerPage", "FS Manager", "Create Folder", handleFSmanagerMenu, 3);
     dm.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleFSmanagerMenu, 4);
 
-    dm.includeJsScript("/fsManager.js");
+    dm.includeJsScript("/FSmanager.js");
 }
 
 
@@ -379,7 +378,8 @@ void setup()
     debug->print("IP address: ");
     debug->println(WiFi.localIP());
     
-    dm.begin(debug);
+    dm.begin("/", debug);
+    debug->printf("DisplayManager files are located [%s]\n", dm.getSystemFilePath().c_str());
     fsManager.begin();
     fsManager.addSystemFile("displayManager.html");
     fsManager.addSystemFile("displayManager.css");

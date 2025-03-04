@@ -24,15 +24,17 @@ DisplayManager::DisplayManager(uint16_t port)
     debug(("DisplayManager constructor called with port: " + std::to_string(port)).c_str());
 }
 
-void DisplayManager::begin(Stream* debugOut) 
+void DisplayManager::begin(const char* systemPath, Stream* debugOut) 
 {
-    debug("begin() called");
-    this->debugOut = debugOut;
+  rootSystemPath = systemPath;
+
+  this->debugOut = debugOut;
     if (!LittleFS.begin(true)) 
     {
         debug("An error occurred while mounting LittleFS");
         return;
     }
+    debug(("begin(): called with rootSystemPath: [" + std::string(rootSystemPath) +"]").c_str());
     setupWebServer();
 }
 
@@ -1110,7 +1112,7 @@ void DisplayManager::setHeaderTitle(const char* title)
 
 std::string DisplayManager::generateHTML()
 {
-  debug("generateHTML() called");
+  debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
   return R"HTML(
 <!DOCTYPE html>
 <html>
@@ -1118,11 +1120,11 @@ std::string DisplayManager::generateHTML()
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Display Manager</title>
-    <link rel="stylesheet" href="/displayManager.css">
+    <link rel="stylesheet" href=")HTML" + std::string(rootSystemPath) + R"HTML(displayManager.css">
 </head>
 <body>
     <script>
-        window.location.href = "/displayManager.html";
+        window.location.href = ")HTML" + std::string(rootSystemPath) + R"HTML(displayManager.html";
     </script>
 </body>
 </html>
@@ -1166,4 +1168,10 @@ std::string DisplayManager::generateMenuHTML()
   }
   
   return menuHTML;
+}
+
+
+std::string DisplayManager::getSystemFilePath() const
+{
+  return rootSystemPath;
 }

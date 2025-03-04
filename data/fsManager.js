@@ -1,4 +1,13 @@
-console.log('fsManager.js loaded successfully');
+
+//--------------------------------------------------
+//-- html unicodes to use in the code
+let folderIcon = '&#128193; &nbsp;';
+let fileIcon = '&#128196; &nbsp;';
+let folderUpIcon = '&#8617; ..';
+//--------------------------------------------------
+
+
+console.log('FSmanager.js loaded successfully');
 
 let currentFolder = '/';
 
@@ -120,10 +129,10 @@ function loadFileList() {
           fileListElement.innerHTML = '';
 
           // Add folder name header
-          var headerItem = document.createElement('div');
-          headerItem.classList.add('dM_file-list-header');
-          headerItem.textContent = currentFolder === '/' ? 'Root' : currentFolder.slice(0, -1).split('/').pop();
-          fileListElement.appendChild(headerItem);
+          //--var headerItem = document.createElement('div');
+          //--headerItem.classList.add('dM_file-list-header');
+          //--headerItem.textContent = currentFolder === '/' ? 'Root' : currentFolder.slice(0, -1).split('/').pop();
+          //--fileListElement.appendChild(headerItem);
           
           // Create arrays for folders and files
           // Remove duplicates by using a Map with folder name as key
@@ -157,7 +166,7 @@ function loadFileList() {
               itemCount++;
               var backItem = document.createElement('li');
               backItem.classList.add('dM_file-item');
-              backItem.innerHTML = '<span style="cursor: pointer" onclick="navigateUp()"><span class="dM_folder-icon">[F]</span>..</span><span class="dM_size"></span><span></span><span></span>';
+              backItem.innerHTML = `<span style="cursor: pointer" onclick="navigateUp()"><span class="dM_folder-icon">${folderUpIcon}</span></span><span class="dM_size"></span><span></span><span></span>`;
               backItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
               fileListElement.appendChild(backItem);
           }
@@ -178,7 +187,7 @@ function loadFileList() {
                 deleteButton = '<button class="dM_delete" onclick="deleteFolder(\'' + folder.name + '\')">Delete</button>';
             }
             
-            fileItem.innerHTML = '<span style="cursor: pointer" onclick="openFolder(\'' + folder.name + '\')"><span class="dM_folder-icon">[F]</span>' + folder.name + '</span><span class="dM_size"></span><span></span>' + deleteButton;
+            fileItem.innerHTML = `<span style="cursor: pointer" onclick="openFolder('${folder.name}')"><span class="dM_folder-icon">${folderIcon}</span>${folder.name}</span><span class="dM_size"></span><span></span>${deleteButton}`;
             fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
             fileListElement.appendChild(fileItem);
           }
@@ -198,7 +207,7 @@ function loadFileList() {
                   deleteButton = '<button class="dM_delete" onclick="deleteFile(\'' + file.name + '\')">Delete</button>';
               }
               
-              fileItem.innerHTML = '<span>[D] ' + file.name + '</span><span class="dM_size">' + formatSize(file.size) + '</span><button onclick="downloadFile(\'' + file.name + '\')">Download</button>' + deleteButton;
+              fileItem.innerHTML = `<span>${fileIcon}${file.name}</span><span class="dM_size">${formatSize(file.size)}</span><button onclick="downloadFile('${file.name}')">Download</button>${deleteButton}`;
               fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
               fileListElement.appendChild(fileItem);
           }
@@ -443,4 +452,9 @@ function reboot() {
     };
     
     xhr.send();
+}
+
+function isFSmanagerLoaded() {
+  console.log("isFSmanagerLoaded(): FSmanager.js is loaded");
+  return true;
 }
