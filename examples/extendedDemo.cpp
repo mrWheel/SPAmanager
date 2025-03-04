@@ -33,7 +33,7 @@ void pageIsLoadedCallback()
   debug->println("pageIsLoadedCallback(): Page is loaded callback executed");
   dm.includeJsScript("/FSmanager.js");
   debug->println("pageIsLoadedCallback(): Included '/FSmanager.js'");
-  fsManager.addSystemFile("FSmanager.js");
+  fsManager.addSystemFile("FSmanager.js", false);
 
 } 
 
@@ -378,13 +378,16 @@ void setup()
     debug->print("IP address: ");
     debug->println(WiFi.localIP());
     
-    dm.begin("/", debug);
+    dm.begin("/SYS", debug);
     debug->printf("DisplayManager files are located [%s]\n", dm.getSystemFilePath().c_str());
     fsManager.begin();
-    fsManager.addSystemFile("displayManager.html");
-    fsManager.addSystemFile("displayManager.css");
-    fsManager.addSystemFile("displayManager.js");
-    fsManager.addSystemFile("disconnected.html");
+    fsManager.addSystemFile("favicon.ico");
+    fsManager.setSystemFilePath("/SYS");
+    debug->printf("FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
+    fsManager.addSystemFile("displayManager.html", false);
+    fsManager.addSystemFile("displayManager.css", false);
+    fsManager.addSystemFile("disconnected.html", false);
+    fsManager.addSystemFile("displayManager.js", false);
    
     dm.pageIsLoaded(pageIsLoadedCallback);
 

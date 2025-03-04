@@ -22,7 +22,7 @@ class DisplayManager
     Stream* debugOut;
     uint8_t currentClient;  // Store current connected client number
     bool hasConnectedClient;  // Track if we have a connected client
-    const char* rootSystemPath;
+    std::string rootSystemPath;
     std::function<void()> pageLoadedCallback;
     static const size_t MAX_NAME_LEN = 32;
     static const size_t MAX_URL_LEN = 64;

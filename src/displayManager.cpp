@@ -26,17 +26,34 @@ DisplayManager::DisplayManager(uint16_t port)
 
 void DisplayManager::begin(const char* systemPath, Stream* debugOut) 
 {
-  rootSystemPath = systemPath;
+    // Convert to std::string for manipulation
+    std::string path = systemPath;
+    
+    // Ensure it starts with '/' but does not end with '/'
+    if (!path.empty() && path.front() != '/') {
+      path = "/" + path;  // Add '/' at the beginning if not already present
+    }
 
-  this->debugOut = debugOut;
+  if (path != "/" && path.back() == '/') {
+      path.pop_back();  // Remove trailing '/' if it's not the root '/'
+  }
+
+
+    // Store in rootSystemPath (assuming rootSystemPath is std::string)
+    rootSystemPath = path;
+
+    this->debugOut = debugOut;
+
     if (!LittleFS.begin(true)) 
     {
         debug("An error occurred while mounting LittleFS");
         return;
     }
-    debug(("begin(): called with rootSystemPath: [" + std::string(rootSystemPath) +"]").c_str());
+
+    debug(("begin(): called with rootSystemPath: [" + rootSystemPath + "]").c_str());
     setupWebServer();
-}
+
+} //  begin()
 
 void DisplayManager::setupWebServer() 
 {
@@ -46,10 +63,19 @@ void DisplayManager::setupWebServer()
         handleWebSocketEvent(num, type, payload, length);
     });
     
-    server.serveStatic("/displayManager.css", LittleFS, "/displayManager.css");
-    server.serveStatic("/displayManager.html", LittleFS, "/displayManager.html");
-    server.serveStatic("/disconnected.html", LittleFS, "/disconnected.html");
-  //server.serveStatic("/fsManager.js", LittleFS, "/fsManager.js");
+    std::string filePath = std::string(rootSystemPath) + "/displayManager.css";
+    server.serveStatic("/displayManager.css", LittleFS, filePath.c_str());
+    debug(("server.serveStatic(/displayManager.css, LittleFS, " + filePath +")").c_str());
+    filePath = std::string(rootSystemPath) + "/displayManager.html";
+    server.serveStatic("/displayManager.html", LittleFS, filePath.c_str());
+    debug(("server.serveStatic(/displayManager.html, LittleFS, " + filePath +")").c_str());
+    filePath = std::string(rootSystemPath) + "/displayManager.js";
+    server.serveStatic("/displayManager.js", LittleFS, filePath.c_str());
+    debug(("server.serveStatic(/displayManager.js, LittleFS, " + filePath +")").c_str());
+    filePath = std::string(rootSystemPath) + "/disconnected.html";
+    server.serveStatic("/disconnected.html", LittleFS, filePath.c_str());
+    debug(("server.serveStatic(/disconnected.html, LittleFS, " + filePath).c_str());
+
     server.on("/", HTTP_GET, [this]() {
         server.send(200, "text/html", generateHTML().c_str());
     });
@@ -915,30 +941,56 @@ void DisplayManager::disableID(const char* pageName, const char* id)
 void DisplayManager::includeJsScript(const char* scriptFile)
 {
   debug(("DisplayManager::includeJsScript() called with scriptFile: [" + std::string(scriptFile) + "]").c_str());
+  debug(("DisplayManager::includeJsScript() called with rootPath: [" + std::string(rootSystemPath) + "]").c_str());
   if (hasConnectedClient)
   {
+    // Sanitize the scriptFile by removing trailing slashes
+    std::string sanitizedScriptFile = scriptFile;
+    // Remove leading slash
+//    if (sanitizedScriptFile.front() == '/') {
+//      sanitizedScriptFile = sanitizedScriptFile.substr(1);
+//    }
+    // Remove trailing slash
+    if (!sanitizedScriptFile.empty() && sanitizedScriptFile.back() == '/') {
+      sanitizedScriptFile = sanitizedScriptFile.substr(0, sanitizedScriptFile.size() - 1);
+    }
+  
+    std::string scriptPath = rootSystemPath + sanitizedScriptFile;
+
     // Check if script has already been served
-    std::string scriptPath(scriptFile);
     if (servedScripts.find(scriptPath) != servedScripts.end()) {
       debug(("Script [" + scriptPath + "] already served, skipping").c_str());
       return;
     }
 
+    debug(("Serving [" + std::string(sanitizedScriptFile) + "] with scriptPath [" + scriptPath + "]").c_str());
+
     const size_t capacity = JSON_OBJECT_SIZE(2);
     DynamicJsonDocument doc(capacity);
 
     doc["event"] = "includeJsScript";
-    doc["data"]  = scriptFile;
+    //doc["data"]  = scriptPath.c_str();
+    doc["data"]  = sanitizedScriptFile.c_str();
 
     std::string output;
     serializeJson(doc, output);
 
+    debug(("Broadcasting includeJsScript message[" + output +"]").c_str());
+
     if (!output.empty())
     {
-      server.serveStatic(scriptFile, LittleFS, scriptFile);
+    //server.serveStatic(scriptFile, LittleFS, scriptFile);
+      // Debug the serveStatic call before actually serving the file
+      debug(("server.serveStatic(" + std::string(sanitizedScriptFile) + ", LittleFS, " + scriptPath + ")").c_str());
+
+      server.serveStatic(sanitizedScriptFile.c_str(), LittleFS, scriptPath.c_str());
       ws.broadcastTXT(output.c_str(), output.length());
       servedScripts.insert(scriptPath);  // Mark script as served
     }
+  }
+  else
+  {
+    debug("No connected clients, skipping includeJsScript till client connects");
   }
 }
 
@@ -1120,11 +1172,11 @@ std::string DisplayManager::generateHTML()
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Display Manager</title>
-    <link rel="stylesheet" href=")HTML" + std::string(rootSystemPath) + R"HTML(displayManager.css">
+    <link rel="stylesheet" href=")HTML" + std::string(rootSystemPath) + R"HTML(/displayManager.css">
 </head>
 <body>
     <script>
-        window.location.href = ")HTML" + std::string(rootSystemPath) + R"HTML(displayManager.html";
+        window.location.href = ")HTML" + std::string(rootSystemPath) + R"HTML(/displayManager.html";
     </script>
 </body>
 </html>
