@@ -212,7 +212,7 @@ void handleFSmanagerMenu(uint8_t param)
 void setupMainPage()
 {
     const char *mainPage = R"HTML(
-    <div style="font-size: 48px; text-align: center; font-weight: bold;">basicDM page</div>
+    <div style="font-size: 48px; text-align: center; font-weight: bold;">Extended Demo Page</div>
     )HTML";
     
     dm.addPage("Main", mainPage);
