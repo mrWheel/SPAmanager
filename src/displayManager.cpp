@@ -21,7 +21,7 @@ DisplayManager::DisplayManager(uint16_t port)
     , servedScripts()  // Initialize empty set
 
 {
-    debug(("DisplayManager constructor called with port: " + std::to_string(port)).c_str());
+    debug(("displayManager::  constructor called with port: " + std::to_string(port)).c_str());
 }
 
 void DisplayManager::begin(const char* systemPath, Stream* debugOut) 
@@ -62,7 +62,7 @@ void DisplayManager::setupWebServer()
     ws.onEvent([this](uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
         handleWebSocketEvent(num, type, payload, length);
     });
-    
+
     std::string filePath = std::string(rootSystemPath) + "/displayManager.css";
     server.serveStatic("/displayManager.css", LittleFS, filePath.c_str());
     debug(("server.serveStatic(/displayManager.css, LittleFS, " + filePath +")").c_str());
@@ -229,6 +229,10 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
         }
         else if (doc["type"] == "pageLoaded") {
           debug("WebSocket: pageLoaded message received");
+          if (!firstPageName.empty()) {
+            debug(("Activating first page: [" + firstPageName + "]").c_str());
+            activatePage(firstPageName.c_str());
+          }
           // Clear the servedScripts set to allow scripts to be included again
           servedScripts.clear();
           if (pageLoadedCallback) {
@@ -362,6 +366,10 @@ void DisplayManager::broadcastState()
 void DisplayManager::addPage(const char* pageName, const char* html) 
 {
     debug(("addPage() called with pageName: " + std::string(pageName)).c_str());
+    
+    if (pages.empty()) {
+      firstPageName = pageName;  // Store the first page name
+    }
     
     auto it = std::find_if(pages.begin(), pages.end(),
         [pageName](const Page& page) { return strcmp(page.name, pageName) == 0; });
@@ -969,7 +977,6 @@ void DisplayManager::includeJsScript(const char* scriptFile)
     DynamicJsonDocument doc(capacity);
 
     doc["event"] = "includeJsScript";
-    //doc["data"]  = scriptPath.c_str();
     doc["data"]  = sanitizedScriptFile.c_str();
 
     std::string output;
@@ -1062,77 +1069,11 @@ void DisplayManager::debug(const char* message)
 {
     if (debugOut) 
     {
-        debugOut->println(message);
+      std::string debugMessage = "displayManager:: " + std::string(message);
+      debugOut->println(debugMessage.c_str());
     }
 }
 
-/*** 
-DisplayManager::PlaceholderValue DisplayManager::getPlaceholder(const char* pageName, const char* placeholder)
-{
-  debug((std::string("getPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
-  std::string value = "";
-  
-  for (const auto& page : pages)
-  {
-    if (strcmp(page.name, pageName) == 0)
-    {
-      std::string content = page.getContent();
-      std::string idStr1 = std::string("id='") + placeholder + "'";
-      std::string idStr2 = std::string("id=\"") + placeholder + "\"";
-      size_t pos = content.find(idStr1);
-      if (pos == std::string::npos) {
-          pos = content.find(idStr2);
-      }
-      
-      if (pos != std::string::npos)
-      {
-        // Check if it's an input field
-        size_t inputStart = content.rfind("<input", pos);
-        if (inputStart != std::string::npos && inputStart < pos)
-        {
-          // Find value attribute with single or double quotes
-          size_t valueStart1 = content.find("value='", inputStart);
-          size_t valueStart2 = content.find("value=\"", inputStart);
-          size_t closingBracket = content.find(">", inputStart);
-          
-          if (valueStart1 != std::string::npos && valueStart1 < closingBracket)
-          {
-            valueStart1 += 7; // Length of "value='"
-            size_t valueEnd = content.find("'", valueStart1);
-            if (valueEnd != std::string::npos)
-            {
-              value = content.substr(valueStart1, valueEnd - valueStart1);
-            }
-          }
-          else if (valueStart2 != std::string::npos && valueStart2 < closingBracket)
-          {
-            valueStart2 += 7; // Length of "value=\""
-            size_t valueEnd = content.find("\"", valueStart2);
-            if (valueEnd != std::string::npos)
-            {
-              value = content.substr(valueStart2, valueEnd - valueStart2);
-            }
-          }
-        }
-        else
-        {
-          // For non-input elements, get content between tags
-          size_t start = content.find('>', pos) + 1;
-          size_t end = content.find('<', start);
-          
-          if (start != std::string::npos && end != std::string::npos)
-          {
-            value = content.substr(start, end - start);
-          }
-        }
-        break;
-      }
-    }
-  }
-  
-  return PlaceholderValue(value.c_str());
-}
-***/
 
 void DisplayManager::pageIsLoaded(std::function<void()> callback)
 {
@@ -1162,6 +1103,8 @@ void DisplayManager::setHeaderTitle(const char* title)
   }
 }
 
+
+/*** 
 std::string DisplayManager::generateHTML()
 {
   debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
@@ -1182,6 +1125,29 @@ std::string DisplayManager::generateHTML()
 </html>
 )HTML";
 }
+***/
+std::string DisplayManager::generateHTML()
+{
+  debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
+  return R"HTML(
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display Manager</title>
+    <link rel="stylesheet" href="/displayManager.css">
+</head>
+<body>
+    <script>
+        window.location.href = "/displayManager.html";
+    </script>
+</body>
+</html>
+)HTML";
+}
+
+
 
 std::string DisplayManager::generateMenuHTML()
 {
