@@ -96,13 +96,19 @@ function uploadSelectedFile() {
   }
 }
 
-// Modified upload file function to not automatically upload
 function uploadFile(file) {
   console.log('uploadFile() called, Uploading file:', file.name);
 
   if (!file) {
       console.log('No file selected');
       return;
+  }
+  
+  // Check for filename issues
+  if (file.name.length > 31) {
+    console.error('Filename too long (max 31 characters)');
+    alert('Filename too long. Please rename the file to be shorter than 31 characters.');
+    return;
   }
   
   // Ensure currentFolder is properly formatted
@@ -131,6 +137,24 @@ function uploadFile(file) {
       if (xhr.status === 200) {
           console.log('Upload completed successfully');
           
+          // Check response body for potential errors
+          try {
+              const response = JSON.parse(xhr.responseText);
+              if (response.error) {
+                  console.error('Server reported error:', response.error);
+                  alert('Upload failed: ' + response.error);
+                  return;
+              }
+              if (response.success === false) {
+                  console.error('Server reported failure');
+                  alert('Upload failed. The server could not save the file.');
+                  return;
+              }
+          } catch (e) {
+              // Response might not be JSON, which is fine
+              console.log('Response is not JSON, assuming success');
+          }
+          
           // Set the reset state to ignore the currentFolder from the server
           isResettingToRoot = true;
           
@@ -138,16 +162,21 @@ function uploadFile(file) {
       } else {
           console.error('Upload failed with status:', xhr.status);
           console.error('Response:', xhr.responseText);
+          alert('Upload failed with status: ' + xhr.status);
       }
   };
   
   xhr.onerror = function() {
       console.error('Upload failed due to network error');
+      alert('Upload failed due to network error');
   };
   
   console.log('Sending upload request...');
   xhr.send(formData);
-}
+
+} // uploadFile()
+
+
 // Add a flag to track if we're in a reset state
 var isResettingToRoot = false;
 
