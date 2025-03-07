@@ -159,6 +159,11 @@ void processInputCallback(const std::map<std::string, std::string>& inputValues)
     debug->printf("  %s = %s\n", pair.first.c_str(), pair.second.c_str());
   }
 }
+void processUploadFileCallback()
+{
+  debug->println("Process processUploadFileCallback(): proceed action received");
+}
+
 
 void doJsFunction()
 {
@@ -320,26 +325,43 @@ void setupInputPage()
 void setupFSmanagerPage()
 {
   const char *fsManagerPage = R"HTML(
-<div id="fsm_fileList" style="display: block;">
-</div>
-<div id="fsm_fileUpload" style="display: none;">
-  <input type="file" id="fsm_fileInput" onchange="uploadFile(this.files[0])">
-</div>
-<div id="fsm_addFolder" class="FSM_space-info" style="display: none;">
-  <input type="text" placeholder="Enter new folder name" onchange="addFolder(this.files[0])">
-</div>
-<div id="fsm_spaceInfo" class="FSM_space-info" style="display: block;">
-  <!-- Space information will be displayed here -->
-</div>    )HTML";
+    <div id="fsm_fileList" style="display: block;">
+    </div>
+    <div id="fsm_spaceInfo" class="FSM_space-info" style="display: block;">
+      <!-- Space information will be displayed here -->
+    </div>    
+  )HTML";
   
-    dm.addPage("FSmanagerPage", fsManagerPage);
-    dm.setPageTitle("FSmanagerPage", "FileSystem Manager");
-    //-- Add InputPage menu
-    dm.addMenu("FSmanagerPage", "FS Manager");
-    dm.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleFSmanagerMenu, 1);
-    dm.addMenuItem("FSmanagerPage", "FS Manager", "Upload File",   handleFSmanagerMenu, 2);
-    dm.addMenuItem("FSmanagerPage", "FS Manager", "Create Folder", handleFSmanagerMenu, 3);
-    dm.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleFSmanagerMenu, 4);
+  dm.addPage("FSmanagerPage", fsManagerPage);
+
+  const char *popupUploadFile = R"HTML(
+    <div id="popUpUploadFile">Upload File</div>
+    <div id="fsm_fileUpload">
+      <input type="file" id="fsm_fileInput">
+      <div id="selectedFileName" style="margin-top: 5px; font-style: italic;"></div>
+    </div>
+    <div style="margin-top: 10px;">
+      <button type="button" onClick="closePopup('popup_FS_Manager_Upload_File')">Cancel</button>
+      <button type="button" id="uploadButton" onClick="uploadSelectedFile()" disabled>Upload File</button>
+    </div>
+  )HTML";
+  
+  const char *popupNewFolder = R"HTML(
+    <div id="popupCreateFolder">Create Folder</div>
+    <label for="folderNameInput">Folder Name:</label>
+    <input type="text" id="folderNameInput" placeholder="Enter folder name">
+    <br>
+    <button type="button" onClick="closePopup('popup_FS_Manager_New_Folder')">Cancel</button>
+    <button type="button" onClick="createFolderFromInput()">Create Folder</button>
+  )HTML";
+
+  dm.setPageTitle("FSmanagerPage", "FileSystem Manager");
+  //-- Add InputPage menu
+  dm.addMenu("FSmanagerPage", "FS Manager");
+  dm.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleFSmanagerMenu, 1);
+  dm.addMenuItemPopup("FSmanagerPage", "FS Manager", "Upload File", popupUploadFile);
+  dm.addMenuItemPopup("FSmanagerPage", "FS Manager", "Create Folder", popupNewFolder);
+  dm.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleFSmanagerMenu, 4);
 
 }
 

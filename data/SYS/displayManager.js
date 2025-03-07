@@ -354,135 +354,151 @@ function handleMenuClick(menuName, itemName) {
   }));
 }
 function includeJsFile(fileName) {
-return new Promise((resolve, reject) => {
-  // Check if the script is already included to avoid duplicates
-  if (!document.querySelector(`script[src="${fileName}"]`)) {
-      const script = document.createElement("script");
-      script.src = fileName;
-      script.async = false;  // Make it synchronous
-      script.defer = false;  // Ensure immediate execution
-      
-      script.onload = () => {
-        console.log(`Script [${fileName}] loaded and executed`);
+  return new Promise((resolve, reject) => {
+    // Check if the script is already included to avoid duplicates
+    if (!document.querySelector(`script[src="${fileName}"]`)) {
+        const script = document.createElement("script");
+        script.src = fileName;
+        script.async = false;  // Make it synchronous
+        script.defer = false;  // Ensure immediate execution
+        
+        script.onload = () => {
+          console.log(`Script [${fileName}] loaded and executed`);
+          resolve();
+        };
+        
+        script.onerror = () => {
+          console.error(`Failed to load script [${fileName}]`);
+          reject();
+        };
+        
+        // Insert at the head to ensure it loads before other scripts
+        document.head.appendChild(script);
+        console.log(`Including JS script: [${fileName}]`);
+    } else {
+        console.log(`Script [${fileName}] is already included.`);
         resolve();
-      };
-      
-      script.onerror = () => {
-        console.error(`Failed to load script [${fileName}]`);
-        reject();
-      };
-      
-      // Insert at the head to ensure it loads before other scripts
-      document.head.appendChild(script);
-      console.log(`Including JS script: [${fileName}]`);
-  } else {
-      console.log(`Script [${fileName}] is already included.`);
-      resolve();
-  }
-});
+    }
+  });
 }
+
 
 // Function to handle popup windows
 function showPopup(id, content) {
-const popupOverlay = document.createElement('div');
-popupOverlay.className = 'popup-overlay';
-popupOverlay.id = id + '_overlay';
-popupOverlay.style.position = 'fixed';
-popupOverlay.style.top = '0';
-popupOverlay.style.left = '0';
-popupOverlay.style.width = '100%';
-popupOverlay.style.height = '100%';
-popupOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-popupOverlay.style.zIndex = '1000';
-popupOverlay.style.display = 'flex';
-popupOverlay.style.justifyContent = 'center';
-popupOverlay.style.alignItems = 'center';
-
-const popupContent = document.createElement('div');
-popupContent.className = 'popup-content';
-popupContent.id = id + '_content';
-popupContent.style.backgroundColor = 'white';
-popupContent.style.padding = '20px';
-popupContent.style.borderRadius = '5px';
-popupContent.style.maxWidth = '80%';
-popupContent.style.maxHeight = '80%';
-popupContent.style.overflow = 'auto';
-popupContent.style.position = 'relative';
-
-popupContent.innerHTML = content;
-
-// Add close function
-window.closePopup = function(popupId) {
-  const overlay = document.getElementById(popupId + '_overlay');
-  if (overlay) {
-    document.body.removeChild(overlay);
-  }
-};
-
-// Handle file upload if present
-const fileInput = popupContent.querySelector('input[type="file"]');
-if (fileInput) {
-  fileInput.onchange = function(event) {
-    if (this.files.length > 0) {
-      // Extract the function name from the onchange attribute
-      const onchangeAttr = fileInput.getAttribute('onchange');
-      if (onchangeAttr) {
-        const funcMatch = onchangeAttr.match(/(\w+)\s*\(/);
-        if (funcMatch && funcMatch[1]) {
-          const funcName = funcMatch[1];
-          // Store the file in a global variable so the function can access it
-          window.selectedFile = this.files[0];
-          // Call the function using callJsFunction mechanism
-          if (typeof window[funcName] === 'function') {
-            window[funcName](this.files[0]);
-          }
-        }
-      }
-      window.closePopup(id);
+  const popupOverlay = document.createElement('div');
+  popupOverlay.className = 'dM_popup-overlay';
+  popupOverlay.id = id + '_overlay';
+  
+  const popupContent = document.createElement('div');
+  popupContent.className = 'dM_popup-content';
+  popupContent.id = id + '_content';
+  
+  popupContent.innerHTML = content;
+  
+  // Add close function
+  window.closePopup = function(popupId) {
+    const overlay = document.getElementById(popupId + '_overlay');
+    if (overlay) {
+      document.body.removeChild(overlay);
     }
   };
-}
-
-// Handle buttons with onClick attributes
-const buttons = popupContent.querySelectorAll('button[onClick]');
-buttons.forEach(button => {
-  const onClickAttr = button.getAttribute('onClick');
-  if (onClickAttr) {
-    button.onclick = function(event) {
-      // Parse the onClick attribute to extract function name and parameters
-      const funcMatch = onClickAttr.match(/(\w+)\s*\(([^)]*)\)/);
-      if (funcMatch) {
-        const funcName = funcMatch[1];
-        const params = funcMatch[2].split(',').map(p => p.trim());
+  
+  // Handle file upload if present
+  const fileInput = popupContent.querySelector('input[type="file"]');
+  if (fileInput) {
+    // Add change event listener to enable/disable upload button
+    fileInput.addEventListener('change', function() {
+      const uploadButton = popupContent.querySelector('#uploadButton');
+      const selectedFileName = popupContent.querySelector('#selectedFileName');
+      
+      if (this.files && this.files.length > 0) {
+        // Enable upload button
+        if (uploadButton) {
+          uploadButton.disabled = false;
+          console.log('Upload button enabled');
+        }
         
-        // If parameters are specified, collect their values
-        const paramValues = [];
-        params.forEach(param => {
-          if (param) {
-            const inputElem = document.getElementById(param);
-            if (inputElem) {
-              paramValues.push(inputElem.value);
-            } else {
-              paramValues.push(param); // Use the parameter name as a literal if no element found
-            }
-          }
-        });
+        // Display selected filename
+        if (selectedFileName) {
+          selectedFileName.textContent = 'Selected: ' + this.files[0].name;
+        }
+      } else {
+        // Disable upload button if no file selected
+        if (uploadButton) {
+          uploadButton.disabled = true;
+        }
         
-        // Call the function with the collected parameters
-        if (typeof window[funcName] === 'function') {
-          window[funcName](...paramValues);
+        // Clear filename display
+        if (selectedFileName) {
+          selectedFileName.textContent = '';
         }
       }
-      
-      // Close the popup
-      window.closePopup(id);
+    });
+    
+    fileInput.onchange = function(event) {
+      if (this.files.length > 0) {
+        // Extract the function name from the onchange attribute
+        const onchangeAttr = fileInput.getAttribute('onchange');
+        if (onchangeAttr) {
+          const funcMatch = onchangeAttr.match(/(\w+)\s*\(/);
+          if (funcMatch && funcMatch[1]) {
+            const funcName = funcMatch[1];
+            // Store the file in a global variable so the function can access it
+            window.selectedFile = this.files[0];
+            // Call the function using callJsFunction mechanism
+            if (typeof window[funcName] === 'function') {
+              window[funcName](this.files[0]);
+            }
+            // Only close the popup if there was an onchange attribute
+            window.closePopup(id);
+          }
+        }
+        // The closePopup call has been moved inside the if (onchangeAttr) block
+      }
     };
   }
-});
+  
+  // Handle buttons with onClick attributes
+  const buttons = popupContent.querySelectorAll('button[onClick]');
+  buttons.forEach(button => {
+    const onClickAttr = button.getAttribute('onClick');
+    if (onClickAttr) {
+      button.onclick = function(event) {
+        // Parse the onClick attribute to extract function name and parameters
+        const funcMatch = onClickAttr.match(/(\w+)\s*\(([^)]*)\)/);
+        if (funcMatch) {
+          const funcName = funcMatch[1];
+          const params = funcMatch[2].split(',').map(p => p.trim());
+          
+          // If parameters are specified, collect their values
+          const paramValues = [];
+          params.forEach(param => {
+            if (param) {
+              const inputElem = document.getElementById(param);
+              if (inputElem) {
+                paramValues.push(inputElem.value);
+              } else {
+                paramValues.push(param); // Use the parameter name as a literal if no element found
+              }
+            }
+          });
+          
+          // Call the function with the collected parameters
+          if (typeof window[funcName] === 'function') {
+            window[funcName](...paramValues);
+          }
+        }
+        
+        // Close the popup
+        window.closePopup(id);
+      };
+    }
+  });
+  
+  document.body.appendChild(popupOverlay);
+  popupOverlay.appendChild(popupContent);
 
-document.body.appendChild(popupOverlay);
-popupOverlay.appendChild(popupContent);
-}
+} // showPopup()
 
 function processAction(processType) {
 console.log('Processing action:', processType);
