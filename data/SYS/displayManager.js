@@ -18,40 +18,45 @@ function connect() {
       try {
             const data = JSON.parse(event.data);
 
-            if (data.event === 'includeJsScript') {
-                console.log(`addEventListener(): includeJsScript: [${data.data}]`);
-                handleEvent('includeJsScript', data.data);
-                return;
+            if (data.event === 'includeJsFile') {
+              console.log(`addEventListener(): includeJsFile: [${data.data}]`);
+              handleEvent('includeJsFile', data.data);
+              return;
             }
             if (data.event === 'callJsFunction') {
-                console.log('addEventListener(): callJsFunction:', data.data);
-                handleEvent('callJsFunction', data.data);
-                return;
+              console.log('addEventListener(): callJsFunction:', data.data);
+              handleEvent('callJsFunction', data.data);
+              return;
+            }
+            if (data.event === 'includeCssFile') {
+              console.log(`addEventListener(): includeCssFile: [${data.data}]`);
+              handleEvent('includeCssFile', data.data);
+              return;
             }
             if (data.event === 'showPopup') {
-                console.log('addEventListener(): showPopup:', data.id);
-                handleEvent('showPopup', data);
-                return;
+              console.log('addEventListener(): showPopup:', data.id);
+              handleEvent('showPopup', data);
+              return;
             }
             // Handle Redirect
             if (data.type === 'redirect') {
-                window.location.href = data.url;
-                return;
+              window.location.href = data.url;
+              return;
             }
 
             // Handle Partial Update
             if (data.type === 'update') {
-                const target = document.getElementById(data.target);
-                if (target) {
-                    if (data.target === 'bodyContent') {
-                        target.innerHTML = data.content;
-                    } else if (target.tagName === 'INPUT') {
-                        target.value = data.content;
-                    } else {
-                        target.textContent = data.content;
-                    }
+              const target = document.getElementById(data.target);
+              if (target) {
+                if (data.target === 'bodyContent') {
+                    target.innerHTML = data.content;
+                } else if (target.tagName === 'INPUT') {
+                    target.value = data.content;
+                } else {
+                    target.textContent = data.content;
                 }
-                return;
+            }
+              return;
             }
 
             // Handle Full State Update
@@ -188,8 +193,8 @@ function handleEvent(eventType, data) {
                 }
             }
             break;
-        case 'includeJsScript':
-            console.log('Handling includeJsScript:', data);
+        case 'includeJsFile':
+            console.log('Handling includeJsFile:', data);
             // Create a promise for this script load
             scriptLoadPromises[data] = new Promise((resolve) => {
                 const script = document.createElement('script');
@@ -202,6 +207,24 @@ function handleEvent(eventType, data) {
                 document.body.appendChild(script);
             });
             break;
+            case 'includeCssFile':
+              console.log('Handling includeCssFile:', data);
+              // Check if the CSS is already included to avoid duplicates
+              if (!document.querySelector(`link[href="${data}"]`)) {
+                  const link = document.createElement('link');
+                  link.rel = 'stylesheet';
+                  link.href = data;
+                  link.onload = () => {
+                      console.log(`CSS [${data}] loaded`);
+                  };
+                  link.onerror = () => {
+                      console.error(`Failed to load CSS [${data}]`);
+                  };
+                  document.head.appendChild(link);
+              } else {
+                  console.log(`CSS [${data}] is already included.`);
+              }
+              break;
         case 'showPopup':
             console.log('Handling showPopup:', data.id);
             showPopup(data.id, data.content);
@@ -330,7 +353,7 @@ function handleMenuClick(menuName, itemName) {
       item: itemName
   }));
 }
-function includeJsScript(fileName) {
+function includeJsFile(fileName) {
 return new Promise((resolve, reject) => {
   // Check if the script is already included to avoid duplicates
   if (!document.querySelector(`script[src="${fileName}"]`)) {

@@ -159,8 +159,8 @@ function loadFileList() {
           if (currentFolder !== '/') {
               itemCount++;
               var backItem = document.createElement('li');
-              backItem.classList.add('dM_file-item');
-              backItem.innerHTML = `<span style="cursor: pointer" onclick="navigateUp()"><span class="dM_folder-icon">${folderUpIcon}</span></span><span class="dM_size"></span><span></span><span></span>`;
+              backItem.classList.add('FSM_file-item');
+              backItem.innerHTML = `<span style="cursor: pointer" onclick="navigateUp()"><span class="FSM_folder-icon">${folderUpIcon}</span></span><span class="FSM_size"></span><span></span><span></span>`;
               backItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
               fileListElement.appendChild(backItem);
           }
@@ -170,18 +170,18 @@ function loadFileList() {
             var folder = folders[i];
             itemCount++;
             var fileItem = document.createElement('li');
-            fileItem.classList.add('dM_file-item');
+            fileItem.classList.add('FSM_file-item');
             
             // Check folder access permissions
             var deleteButton = '';
             if (folder.access === 'r') {
-                deleteButton = '<button class="dM_delete" disabled>Locked</button>';
+                deleteButton = '<button class="FSM_delete" disabled>Locked</button>';
             } else {
                 // Enable delete button for empty folders
-                deleteButton = '<button class="dM_delete" onclick="deleteFolder(\'' + folder.name + '\')">Delete</button>';
+                deleteButton = '<button class="FSM_delete" onclick="deleteFolder(\'' + folder.name + '\')">Delete</button>';
             }
             
-            fileItem.innerHTML = `<span style="cursor: pointer" onclick="openFolder('${folder.name}')"><span class="dM_folder-icon">${folderIcon}</span>${folder.name}</span><span class="dM_size"></span><span></span>${deleteButton}`;
+            fileItem.innerHTML = `<span style="cursor: pointer" onclick="openFolder('${folder.name}')"><span class="FSM_folder-icon">${folderIcon}</span>${folder.name}</span><span class="FSM_size"></span><span></span>${deleteButton}`;
             fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
             fileListElement.appendChild(fileItem);
           }
@@ -191,17 +191,17 @@ function loadFileList() {
               var file = files[i];
               itemCount++;
               var fileItem = document.createElement('li');
-              fileItem.classList.add('dM_file-item');
+              fileItem.classList.add('FSM_file-item');
               
               // Check file access permissions
               var deleteButton = '';
               if (file.access === 'r') {
-                  deleteButton = '<button class="dM_delete" disabled>Locked</button>';
+                  deleteButton = '<button class="FSM_delete" disabled>Locked</button>';
               } else {
-                  deleteButton = '<button class="dM_delete" onclick="deleteFile(\'' + file.name + '\')">Delete</button>';
+                  deleteButton = '<button class="FSM_delete" onclick="deleteFile(\'' + file.name + '\')">Delete</button>';
               }
               
-              fileItem.innerHTML = `<span>${fileIcon}${file.name}</span><span class="dM_size">${formatSize(file.size)}</span><button onclick="downloadFile('${file.name}')">Download</button>${deleteButton}`;
+              fileItem.innerHTML = `<span>${fileIcon}${file.name}</span><span class="FSM_size">${formatSize(file.size)}</span><button onclick="downloadFile('${file.name}')">Download</button>${deleteButton}`;
               fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
               fileListElement.appendChild(fileItem);
           }
