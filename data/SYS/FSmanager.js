@@ -12,40 +12,91 @@ console.log('FSmanager.js loaded successfully');
 let currentFolder = '/';
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded event fired');
-    
-    // Wait for displayManager's WebSocket to be established
-    const checkWsInterval = setInterval(() => {
-        if (window.ws && ws.readyState === WebSocket.OPEN) {
-            console.log('Using existing WebSocket connection');
-            clearInterval(checkWsInterval);
+  console.log('DOMContentLoaded event fired');
+  
+  // Wait for displayManager's WebSocket to be established
+  const checkWsInterval = setInterval(() => {
+      if (window.ws && ws.readyState === WebSocket.OPEN) {
+          console.log('Using existing WebSocket connection');
+          clearInterval(checkWsInterval);
+          
+          // Add message handler for file system operations
+          const originalOnMessage = ws.onmessage;
+          ws.onmessage = function(event) {
+              const data = JSON.parse(event.data);
+              if (data.type === 'fileUpload') {
+                  console.log('File upload popup opened');
+                  //document.getElementById('fsm_fileInput').click();
+              } else if (data.type === 'createFolder') {
+                  console.log('Triggering create folder');
+                  createFolder();
+              } else if (data.type === 'reboot') {
+                  console.log('Triggering reboot');
+                  reboot();
+              } else if (data.type === 'fileList') {
+                  console.log('Triggering file list refresh');
+                  loadFileList();
+              }
+              // Call original message handler
+              if (originalOnMessage) {
+                  originalOnMessage(event);
+              }
+          };
+      }
+  }, 100);
+  
+  // Add event delegation for file input changes
+  document.addEventListener('change', function(event) {
+    if (event.target && event.target.id === 'fsm_fileInput') {
+        const fileInput = event.target;
+        const uploadButton = document.getElementById('uploadButton');
+        const selectedFileName = document.getElementById('selectedFileName');
+        
+        if (fileInput.files && fileInput.files.length > 0) {
+            // Enable upload button
+            if (uploadButton) {
+                uploadButton.disabled = false;
+            }
             
-            // Add message handler for file system operations
-            const originalOnMessage = ws.onmessage;
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'fileUpload') {
-                    console.log('Triggering file input click');
-                    document.getElementById('fsm_fileInput').click();
-                } else if (data.type === 'createFolder') {
-                    console.log('Triggering create folder');
-                    createFolder();
-                } else if (data.type === 'reboot') {
-                    console.log('Triggering reboot');
-                    reboot();
-                } else if (data.type === 'fileList') {
-                    console.log('Triggering file list refresh');
-                    loadFileList();
-                }
-                // Call original message handler
-                if (originalOnMessage) {
-                    originalOnMessage(event);
-                }
-            };
+            // Display selected filename
+            if (selectedFileName) {
+                selectedFileName.textContent = 'Selected: ' + fileInput.files[0].name;
+            }
+        } else {
+            // Disable upload button if no file selected
+            if (uploadButton) {
+                uploadButton.disabled = true;
+            }
+            
+            // Clear filename display
+            if (selectedFileName) {
+                selectedFileName.textContent = '';
+            }
         }
-    }, 100);
+    }
+  });
 });
 
+function uploadSelectedFile() {
+  console.log('Uploading selected file');
+  const fileInput = document.getElementById('fsm_fileInput');
+  
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    console.error('No file selected');
+    return;
+  }
+  
+  // Upload the selected file
+  uploadFile(fileInput.files[0]);
+  
+  // Close the popup
+  const popup = document.querySelector('.popup-container');
+  if (popup) {
+    popup.style.display = 'none';
+  }
+}
+
+// Modified upload file function to not automatically upload
 function uploadFile(file) {
   console.log('uploadFile() called, Uploading file:', file.name);
 
@@ -97,7 +148,6 @@ function uploadFile(file) {
   console.log('Sending upload request...');
   xhr.send(formData);
 }
-
 // Add a flag to track if we're in a reset state
 var isResettingToRoot = false;
 
@@ -393,60 +443,71 @@ function formatSize(size) {
     }
 }
 
+function createFolderFromInput() {
+  console.log('Creating new folder from input field');
+  const folderNameInput = document.getElementById('folderNameInput');
+  
+  if (!folderNameInput) {
+    console.error('Folder name input field not found');
+    return;
+  }
+  
+  const folderName = folderNameInput.value.trim();
+  
+  if (!folderName) {
+    console.error('Folder name is empty');
+    return;
+  }
+  
+  // Call the common function to create the folder
+  createFolderWithName(folderName);
+}
+
+// Common function to create a folder with a given name
+function createFolderWithName(folderName) {
+  console.log('Creating folder with name:', folderName);
+  
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/fsm/createFolder', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      console.log('Folder created successfully');
+      
+      // Close the popup if it's open
+      const popup = document.querySelector('.popup-container');
+      if (popup) {
+        popup.style.display = 'none';
+      }
+      
+      // Set the reset state to ignore the currentFolder from the server
+      isResettingToRoot = true;
+      
+      loadFileList();
+    } else {
+      console.error('Failed to create folder, status:', xhr.status);
+    }
+  };
+  
+  xhr.onerror = function() {
+    console.error('Failed to create folder');
+  };
+  
+  console.log('Sending create folder request');
+  xhr.send('name=' + encodeURIComponent(folderName));
+}
+
+// Modified original function to maintain backward compatibility
 function createFolder() {
-    console.log('Creating new folder');
-    const folderName = prompt('Enter folder name:');
-    if (!folderName) return;
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/fsm/createFolder', true);
-    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            console.log('Folder created successfully');
-            
-            // Set the reset state to ignore the currentFolder from the server
-            isResettingToRoot = true;
-            
-            loadFileList();
-        } else {
-            console.error('Failed to create folder, status:', xhr.status);
-        }
-    };
-    
-    xhr.onerror = function() {
-        console.error('Failed to create folder');
-    };
-    
-    console.log('Sending create folder request');
-    xhr.send('name=' + encodeURIComponent(folderName));
+  console.log('Creating new folder (legacy method)');
+  const folderName = prompt('Enter folder name:');
+  if (!folderName) return;
+  
+  // Use the common function
+  createFolderWithName(folderName);
 }
 
-function reboot() {
-    if (!confirm('Are you sure you want to reboot the device?')) return;
-
-    console.log('Rebooting device...');
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/fsm/reboot', true);
-    
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            console.log('Reboot command sent successfully');
-            alert('Device is rebooting...');
-            // Reload page after delay to reconnect
-            setTimeout(() => window.location.reload(), 5000);
-        } else {
-            console.error('Failed to reboot, status:', xhr.status);
-        }
-    };
-    
-    xhr.onerror = function() {
-        console.error('Failed to reboot');
-    };
-    
-    xhr.send();
-}
 
 function isFSmanagerLoaded() {
   console.log("isFSmanagerLoaded(): FSmanager.js is loaded");
