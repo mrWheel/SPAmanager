@@ -29,12 +29,8 @@ bool counterRunning = false;
 
 void pageIsLoadedCallback()
 {
-  dm.setMessage("Page is loaded!", 5);
   debug->println("pageIsLoadedCallback(): Page is loaded callback executed");
-  dm.includeJsScript("/FSmanager.js");
-  debug->println("pageIsLoadedCallback(): Included '/FSmanager.js'");
-  fsManager.addSystemFile("FSmanager.js", false);
-
+  debug->println("pageIsLoadedCallback(): Nothing to do!");
 } 
 
     
@@ -390,6 +386,7 @@ void setup()
     fsManager.addSystemFile("displayManager.js", false);
    
     dm.pageIsLoaded(pageIsLoadedCallback);
+    dm.includeJsScript("/FSmanager.js");
 
     setupMainPage();
     setupCounterPage();

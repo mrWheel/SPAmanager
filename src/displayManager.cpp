@@ -233,10 +233,39 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
             debug(("Activating first page: [" + firstPageName + "]").c_str());
             activatePage(firstPageName.c_str());
           }
-          // Clear the servedScripts set to allow scripts to be included again
-          servedScripts.clear();
+          
+          // Include all scripts in servedScripts
+          debug("Including all scripts in servedScripts");
+          for (const auto& scriptPath : servedScripts) {
+            debug(("pageLoaded:: Including script: [" + scriptPath + "]").c_str());
+            // Extract the script file name from the full path
+            std::string sanitizedScriptFile;
+            size_t pos = scriptPath.find(rootSystemPath);
+            if (pos != std::string::npos) {
+              sanitizedScriptFile = scriptPath.substr(pos + rootSystemPath.length());
+            } else {
+              sanitizedScriptFile = scriptPath;
+            }
+            
+            debug(("Including script: [" + sanitizedScriptFile + "]").c_str());
+            
+            const size_t capacity = JSON_OBJECT_SIZE(2);
+            DynamicJsonDocument scriptDoc(capacity);
+            
+            scriptDoc["event"] = "includeJsScript";
+            scriptDoc["data"] = sanitizedScriptFile.c_str();
+            
+            std::string output;
+            serializeJson(scriptDoc, output);
+            
+            if (!output.empty()) {
+              debug(("Broadcasting includeJsScript message: [" + output + "]").c_str());
+              ws.broadcastTXT(output.c_str(), output.length());
+            }
+          }
+          
           if (pageLoadedCallback) {
-              pageLoadedCallback();
+            pageLoadedCallback();
           }
         }
         else if (doc["type"] == "jsFunctionResult") {
@@ -950,56 +979,39 @@ void DisplayManager::includeJsScript(const char* scriptFile)
 {
   debug(("DisplayManager::includeJsScript() called with scriptFile: [" + std::string(scriptFile) + "]").c_str());
   debug(("DisplayManager::includeJsScript() called with rootPath: [" + std::string(rootSystemPath) + "]").c_str());
-  if (hasConnectedClient)
-  {
-    // Sanitize the scriptFile by removing trailing slashes
-    std::string sanitizedScriptFile = scriptFile;
-    // Remove leading slash
-//    if (sanitizedScriptFile.front() == '/') {
-//      sanitizedScriptFile = sanitizedScriptFile.substr(1);
-//    }
-    // Remove trailing slash
-    if (!sanitizedScriptFile.empty() && sanitizedScriptFile.back() == '/') {
-      sanitizedScriptFile = sanitizedScriptFile.substr(0, sanitizedScriptFile.size() - 1);
-    }
   
-    std::string scriptPath = rootSystemPath + sanitizedScriptFile;
-
-    // Check if script has already been served
-    if (servedScripts.find(scriptPath) != servedScripts.end()) {
-      debug(("Script [" + scriptPath + "] already served, skipping").c_str());
-      return;
-    }
-
-    debug(("Serving [" + std::string(sanitizedScriptFile) + "] with scriptPath [" + scriptPath + "]").c_str());
-
-    const size_t capacity = JSON_OBJECT_SIZE(2);
-    DynamicJsonDocument doc(capacity);
-
-    doc["event"] = "includeJsScript";
-    doc["data"]  = sanitizedScriptFile.c_str();
-
-    std::string output;
-    serializeJson(doc, output);
-
-    debug(("Broadcasting includeJsScript message[" + output +"]").c_str());
-
-    if (!output.empty())
-    {
-    //server.serveStatic(scriptFile, LittleFS, scriptFile);
-      // Debug the serveStatic call before actually serving the file
-      debug(("server.serveStatic(" + std::string(sanitizedScriptFile) + ", LittleFS, " + scriptPath + ")").c_str());
-
-      server.serveStatic(sanitizedScriptFile.c_str(), LittleFS, scriptPath.c_str());
-      ws.broadcastTXT(output.c_str(), output.length());
-      servedScripts.insert(scriptPath);  // Mark script as served
-    }
+  // Sanitize the scriptFile by removing trailing slashes
+  std::string sanitizedScriptFile = scriptFile;
+  // Remove leading slash
+  //if (sanitizedScriptFile.front() == '/') {
+  //  sanitizedScriptFile = sanitizedScriptFile.substr(1);
+  //}
+  // Remove trailing slash
+  if (!sanitizedScriptFile.empty() && sanitizedScriptFile.back() == '/') {
+    sanitizedScriptFile = sanitizedScriptFile.substr(0, sanitizedScriptFile.size() - 1);
   }
-  else
-  {
-    debug("No connected clients, skipping includeJsScript till client connects");
+
+  std::string scriptPath = rootSystemPath + sanitizedScriptFile;
+
+  // Check if script has already been served
+  if (servedScripts.find(scriptPath) != servedScripts.end()) {
+    debug(("Script [" + scriptPath + "] already served, skipping").c_str());
+    return;
   }
-}
+
+  debug(("Adding script to servedScripts: [" + scriptPath + "]").c_str());
+  
+  // Debug the serveStatic call before actually serving the file
+  debug(("server.serveStatic(" + std::string(sanitizedScriptFile) + ", LittleFS, " + scriptPath + ")").c_str());
+  
+  // Serve the script file statically
+  server.serveStatic(sanitizedScriptFile.c_str(), LittleFS, scriptPath.c_str());
+  
+  // Add to servedScripts set
+  servedScripts.insert(scriptPath);
+
+} // includeJsScript()
+
 
 void DisplayManager::callJsFunction(const char* functionName)
 {
@@ -1104,28 +1116,6 @@ void DisplayManager::setHeaderTitle(const char* title)
 }
 
 
-/*** 
-std::string DisplayManager::generateHTML()
-{
-  debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
-  return R"HTML(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Display Manager</title>
-    <link rel="stylesheet" href=")HTML" + std::string(rootSystemPath) + R"HTML(/displayManager.css">
-</head>
-<body>
-    <script>
-        window.location.href = ")HTML" + std::string(rootSystemPath) + R"HTML(/displayManager.html";
-    </script>
-</body>
-</html>
-)HTML";
-}
-***/
 std::string DisplayManager::generateHTML()
 {
   debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
