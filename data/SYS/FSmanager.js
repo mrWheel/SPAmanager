@@ -207,6 +207,21 @@ function loadFileList() {
           }
           fileListElement.innerHTML = '';
           
+          // Create or update the file list header to display the current folder name
+          var headerElement = document.querySelector('.FSM_file-list-header');
+          if (!headerElement) {
+              headerElement = document.createElement('div');
+              headerElement.className = 'FSM_file-list-header';
+              fileListElement.parentNode.insertBefore(headerElement, fileListElement);
+          }
+          
+          // Remove trailing '/' from folder name for display
+          var displayFolderName = currentFolder;
+          if (displayFolderName !== '/' && displayFolderName.endsWith('/')) {
+              displayFolderName = displayFolderName.slice(0, -1);
+          }
+          headerElement.textContent = displayFolderName;
+          
           // Create arrays for folders and files
           // Remove duplicates by using a Map with folder name as key
           var folderMap = new Map();
@@ -260,7 +275,10 @@ function loadFileList() {
                 deleteButton = '<button class="FSM_delete" onclick="deleteFolder(\'' + folder.name + '\')">Delete</button>';
             }
             
-            fileItem.innerHTML = `<span style="cursor: pointer" onclick="openFolder('${folder.name}')"><span class="FSM_folder-icon">${folderIcon}</span>${folder.name}</span><span class="FSM_size"></span><span></span>${deleteButton}`;
+            // Format folder size as "n Files"
+            var folderSizeText = folder.size + (folder.size === 1 ? " File" : " Files");
+            
+            fileItem.innerHTML = `<span style="cursor: pointer" onclick="openFolder('${folder.name}')"><span class="FSM_folder-icon">${folderIcon}</span>${folder.name}</span><span class="FSM_size">${folderSizeText}</span><span></span>${deleteButton}`;
             fileItem.style.backgroundColor = itemCount % 2 === 0 ? '#f5f5f5' : '#fafafa';
             fileListElement.appendChild(fileItem);
           }
@@ -319,6 +337,8 @@ function loadFileList() {
   
   xhr.send();
 }
+
+/***************************************/
 
 function navigateUp() {
     console.log('Navigating up from:', currentFolder);

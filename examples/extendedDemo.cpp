@@ -179,27 +179,8 @@ void handleFSmanagerMenu(uint8_t param)
               dm.setMessage("FS Manager : List LittleFS Clicked!", 5);
               dm.disableID("FSmanagerPage", "fsm_addFolder");
               dm.disableID("FSmanagerPage", "fsm_fileUpload");
-//            dm.enableID("FSmanagerPage",  "fsm_spaceInfo");
               dm.enableID("FSmanagerPage",  "fsm_fileList");
               dm.callJsFunction("loadFileList");
-            }
-            break;
-    case 2: {
-              dm.setMessage("FS Manager : Upload File Clicked!", 5);
-//            dm.disableID("FSmanagerPage", "fsm_spaceInfo");
-              dm.disableID("FSmanagerPage", "fsm_fileList");
-              dm.disableID("FSmanagerPage", "fsm_addFolder");
-              dm.enableID("FSmanagerPage",  "fsm_fileUpload");
-              dm.callJsFunction("uploadFile");
-            }
-            break;
-    case 3: {
-              dm.setMessage("FS Manager : Create Folder Clicked!", 5);
-              dm.disableID("FSmanagerPage", "fsm_addFolder");
-              dm.disableID("FSmanagerPage", "fsm_fileList");
-              dm.disableID("FSmanagerPage", "fsm_fileUpload");
-              dm.enableID("FSmanagerPage",  "fsm_addFolder");
-              dm.callJsFunction("createFolder");
             }
             break;
     case 4: {
@@ -218,6 +199,7 @@ void setupMainPage()
     
     dm.addPage("Main", mainPage);
     dm.setPageTitle("Main", "Display Manager Example");
+
     //-- Add Main menu
     dm.addMenu("Main", "Main Menu");
     dm.addMenuItem("Main", "Main Menu", "StopWatch", mainCallback1);
@@ -261,11 +243,6 @@ void setupMainPage()
     )HTML";
     dm.addMenuItemPopup("Main", "TestPopUp", "InputFields", popup2Input, processInputCallback);
 
-    const char *popupUpload = R"HTML(
-        <div style="font-size: 48px; text-align: center; font-weight: bold;">sometxt</div>
-        <input type="file" id="filePopup1" onchange="uploadFile(this.files[0])">
-      )HTML";
-    dm.addMenuItemPopup("Main", "TestPopUp", "UploadFile", popupUpload, nullptr);
 }
 
 void setupCounterPage()
