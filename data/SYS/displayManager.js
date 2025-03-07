@@ -501,34 +501,42 @@ function showPopup(id, content) {
 } // showPopup()
 
 function processAction(processType) {
-console.log('Processing action:', processType);
+  console.log('Processing action:', processType);
 
-// Get the popup ID
-const popupOverlay = document.querySelector('.popup-overlay');
-const popupId = popupOverlay?.id.replace('_overlay', '');
+  // Get the popup ID - FIXED: Use the correct class name
+  const popupOverlay = document.querySelector('.dM_popup-overlay');
+  const popupId = popupOverlay?.id.replace('_overlay', '');
 
-// Collect all input values from the popup
-const inputValues = {};
-if (popupOverlay) {
-  const inputs = popupOverlay.querySelectorAll('input');
-  console.log('Found', inputs.length, 'input fields in popup');
-  inputs.forEach(input => {
-    if (input.id) {
-      inputValues[input.id] = input.value;
-      console.log('Collected input value:', input.id, '=', input.value);
-    }
-  });
-}
+  // Collect all input values from the popup
+  const inputValues = {};
+  if (popupOverlay) {
+    const inputs = popupOverlay.querySelectorAll('input');
+    console.log('Found', inputs.length, 'input fields in popup');
+    inputs.forEach(input => {
+      if (input.id) {
+        // Special handling for color inputs to ensure the color value is correctly captured
+        if (input.type === 'color') {
+          inputValues[input.id] = input.value;
+          console.log('Collected color value:', input.id, '=', input.value);
+        } else {
+          inputValues[input.id] = input.value;
+          console.log('Collected input value:', input.id, '=', input.value);
+        }
+      }
+    });
+  }
 
-// Log the complete message for debugging
-const message = {
-  type: 'process',
-  processType: processType,
-  popupId: popupId,
-  inputValues: inputValues
-};
-console.log('Sending WebSocket message:', JSON.stringify(message));
+
+  // Log the complete message for debugging
+  const message = {
+    type: 'process',
+    processType: processType,
+    popupId: popupId,
+    inputValues: inputValues
+  };
+  console.log('Sending WebSocket message:', JSON.stringify(message));
 
 ws.send(JSON.stringify(message));
-}
+
+} // processAction()
 
