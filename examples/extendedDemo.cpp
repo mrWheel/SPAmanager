@@ -21,7 +21,7 @@ FSmanager fsManager(dm.server);
 
 uint32_t lastCounterUpdate = 0;
 
-const char *hostName = "basicDM";
+const char *hostName = "extendedDemo";
 uint32_t  counter = 0;
 bool counterRunning = false;
 
