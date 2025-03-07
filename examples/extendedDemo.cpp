@@ -325,10 +325,10 @@ void setupFSmanagerPage()
 <div id="fsm_fileUpload" style="display: none;">
   <input type="file" id="fsm_fileInput" onchange="uploadFile(this.files[0])">
 </div>
-<div id="fsm_addFolder" class="dM_space-info" style="display: none;">
+<div id="fsm_addFolder" class="FSM_space-info" style="display: none;">
   <input type="text" placeholder="Enter new folder name" onchange="addFolder(this.files[0])">
 </div>
-<div id="fsm_spaceInfo" class="dM_space-info" style="display: block;">
+<div id="fsm_spaceInfo" class="FSM_space-info" style="display: block;">
   <!-- Space information will be displayed here -->
 </div>    )HTML";
   
@@ -341,7 +341,6 @@ void setupFSmanagerPage()
     dm.addMenuItem("FSmanagerPage", "FS Manager", "Create Folder", handleFSmanagerMenu, 3);
     dm.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleFSmanagerMenu, 4);
 
-    dm.includeJsScript("/FSmanager.js");
 }
 
 
@@ -378,15 +377,19 @@ void setup()
     debug->printf("DisplayManager files are located [%s]\n", dm.getSystemFilePath().c_str());
     fsManager.begin();
     fsManager.addSystemFile("favicon.ico");
-    fsManager.setSystemFilePath("/SYS");
-    debug->printf("FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
     fsManager.addSystemFile("displayManager.html", false);
     fsManager.addSystemFile("displayManager.css", false);
-    fsManager.addSystemFile("disconnected.html", false);
     fsManager.addSystemFile("displayManager.js", false);
+    fsManager.addSystemFile("disconnected.html", false);
    
     dm.pageIsLoaded(pageIsLoadedCallback);
-    dm.includeJsScript("/FSmanager.js");
+
+    fsManager.setSystemFilePath("/SYS");
+    debug->printf("FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
+    dm.includeJsFile("/FSmanager.js");
+    fsManager.addSystemFile("FSmanager.js", false);
+    dm.includeCssFile("/FSmanager.css");
+    fsManager.addSystemFile("FSmanager.css", false);
 
     setupMainPage();
     setupCounterPage();

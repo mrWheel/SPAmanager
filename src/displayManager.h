@@ -74,7 +74,8 @@ class DisplayManager
     void enableID(const char* pageName, const char* id);
     void disableID(const char* pageName, const char* id);
     std::string getSystemFilePath() const;
-    void includeJsScript(const char* scriptFile);
+    void includeCssFile(const char* cssFile);
+    void includeJsFile(const char* scriptFile);
     void callJsFunction(const char* functionName);
     void pageIsLoaded(std::function<void()> callback);
 
@@ -156,7 +157,7 @@ class DisplayManager
     std::vector<Page> pages;
     Page* activePage;
     //-- Track which scripts have been served to avoid duplicates
-    std::set<std::string> servedScripts;  
+    std::set<std::string> servedFiles;  
     void setupWebServer();
     void handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
     void broadcastState();
