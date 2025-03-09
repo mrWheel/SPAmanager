@@ -74,8 +74,9 @@ class DisplayManager
     void enableID(const char* pageName, const char* id);
     void disableID(const char* pageName, const char* id);
     std::string getSystemFilePath() const;
-    void includeCssFile(const char* cssFile);
-    void includeJsFile(const char* scriptFile);
+    void includeCssFile(const std::string &cssFile);
+    void includeJsFile(const std::string &scriptFile);
+//  void addSystemFile(const std::string &fileName, bool setServe = true);
     void callJsFunction(const char* functionName);
     void pageIsLoaded(std::function<void()> callback);
 
