@@ -4,6 +4,8 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFiManager.h>
+#include <FS.h>
+#include <LittleFS.h>
 #include <Networking.h>
 #include <FSmanager.h>
 #include <string>
@@ -356,7 +358,39 @@ void updateCounter()
     }
 }
 
-
+void listFiles(const char * dirname, int numTabs) {
+  // Ensure that dirname starts with '/'
+  String path = String(dirname);
+  if (!path.startsWith("/")) {
+    path = "/" + path;  // Ensure it starts with '/'
+  }
+  
+  File root = LittleFS.open(path);
+  
+  if (!root) {
+    Serial.print("Failed to open directory: ");
+    Serial.println(path);
+    return;
+  }
+  
+  if (root.isDirectory()) {
+    File file = root.openNextFile();
+    while (file) {
+      for (int i = 0; i < numTabs; i++) {
+        Serial.print("\t");
+      }
+      Serial.print(file.name());
+      if (file.isDirectory()) {
+        Serial.println("/");
+        listFiles(file.name(), numTabs + 1);
+      } else {
+        Serial.print("\t\t\t");
+        Serial.println(file.size());
+      }
+      file = root.openNextFile();
+    }
+  }
+}
 void setup()
 {
     Serial.begin(115200);
@@ -375,27 +409,33 @@ void setup()
     dm.begin("/SYS", debug);
     debug->printf("DisplayManager files are located [%s]\n", dm.getSystemFilePath().c_str());
     fsManager.begin();
-    fsManager.addSystemFile("favicon.ico");
-    fsManager.addSystemFile("displayManager.html", false);
-    fsManager.addSystemFile("displayManager.css", false);
-    fsManager.addSystemFile("displayManager.js", false);
-    fsManager.addSystemFile("disconnected.html", false);
+    fsManager.addSystemFile("/favicon.ico");
+    fsManager.addSystemFile(dm.getSystemFilePath() + "/displayManager.html", false);
+    fsManager.addSystemFile(dm.getSystemFilePath() + "/displayManager.css", false);
+    fsManager.addSystemFile(dm.getSystemFilePath() + "/displayManager.js", false);
+    fsManager.addSystemFile(dm.getSystemFilePath() + "/disconnected.html", false);
    
     dm.pageIsLoaded(pageIsLoadedCallback);
 
-    fsManager.setSystemFilePath("/SYS");
+    fsManager.setSystemFilePath("/FSM");
     debug->printf("FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
-    dm.includeJsFile("/FSmanager.js");
-    fsManager.addSystemFile("FSmanager.js", false);
-    dm.includeCssFile("/FSmanager.css");
-    fsManager.addSystemFile("FSmanager.css", false);
+    dm.includeJsFile(fsManager.getSystemFilePath() + "/FSmanager.js");
+    fsManager.addSystemFile("/FSM/FSmanager.js", false);
+    dm.includeCssFile(fsManager.getSystemFilePath() + "/FSmanager.css");
+    fsManager.addSystemFile(fsManager.getSystemFilePath() + "/FSmanager.css", false);
 
     setupMainPage();
     setupCounterPage();
     setupInputPage();
     setupFSmanagerPage();
     dm.activatePage("Main");
-    
+
+    if (!LittleFS.begin()) {
+      Serial.println("LittleFS Mount Failed");
+      return;
+    }
+    listFiles("/", 0);
+
     Serial.println("Done with setup() ..\n");
 
 }

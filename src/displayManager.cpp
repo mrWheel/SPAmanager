@@ -238,20 +238,28 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
           debug("Including all files in servedFiles");
           for (const auto& scriptPath : servedFiles) {
             debug(("pageLoaded:: Including file: [" + scriptPath + "]").c_str());
+            
             // Extract the script file name from the full path
             std::string sanitizedJsFile;
             size_t pos = scriptPath.find(rootSystemPath);
             if (pos != std::string::npos) {
+              // If rootSystemPath is found, remove it from the path
               sanitizedJsFile = scriptPath.substr(pos + rootSystemPath.length());
             } else {
+              // If rootSystemPath is not found, just use the scriptPath itself
               sanitizedJsFile = scriptPath;
             }
             
+            // Ensure the file path starts with a '/'
+            if (!sanitizedJsFile.empty() && sanitizedJsFile[0] != '/') {
+              sanitizedJsFile = "/" + sanitizedJsFile;
+            }
+          
             debug(("Including file: [" + sanitizedJsFile + "]").c_str());
-            
+          
             const size_t capacity = JSON_OBJECT_SIZE(2);
             DynamicJsonDocument scriptDoc(capacity);
-            
+          
             // Determine if this is a CSS file or JS file based on extension
             if (sanitizedJsFile.find(".css") != std::string::npos) {
               scriptDoc["event"] = "includeCssFile";
@@ -259,15 +267,15 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
               scriptDoc["event"] = "includeJsFile";
             }
             scriptDoc["data"] = sanitizedJsFile.c_str();
-            
+          
             std::string output;
             serializeJson(scriptDoc, output);
-            
+          
             if (!output.empty()) {
               debug(("Broadcasting include message: [" + output + "]").c_str());
               ws.broadcastTXT(output.c_str(), output.length());
             }
-          }          
+          }
           if (pageLoadedCallback) {
             pageLoadedCallback();
           }
@@ -979,73 +987,122 @@ void DisplayManager::disableID(const char* pageName, const char* id)
 }
 
 
-void DisplayManager::includeJsFile(const char* jsFile)
+void DisplayManager::includeJsFile(const std::string &path2JsFile)
 {
-  debug(("DisplayManager::includeJsFile() called with jsFile:   [" + std::string(jsFile) + "]").c_str());
-  debug(("DisplayManager::includeJsFile() called with rootPath: [" + std::string(rootSystemPath) + "]").c_str());
+  std::string sanitizedJsPath = path2JsFile;
   
-  //-- Sanitize the jsFile by removing trailing slashes
-  std::string sanitizedJsFile = jsFile;
-  //-- Remove trailing slash
-  if (!sanitizedJsFile.empty() && sanitizedJsFile.back() == '/') {
-    sanitizedJsFile = sanitizedJsFile.substr(0, sanitizedJsFile.size() - 1);
-  }
+  debug(("DisplayManager::includeJsFile() called with path2JsFile: [" + sanitizedJsPath + "]").c_str());
 
-  std::string scriptPath = rootSystemPath + sanitizedJsFile;
-
-  //--- Check if file has already been served
-  if (servedFiles.find(scriptPath) != servedFiles.end()) {
-    debug(("Script [" + scriptPath + "] already served, skipping").c_str());
+  //-- Reject a single slash as an invalid path
+  if (sanitizedJsPath == "/") 
+  {
+    debug("ERROR: path2JsFile cannot be '/'");
     return;
   }
 
-  debug(("Adding script to servedFiles: [" + scriptPath + "]").c_str());
-  
-  // Debug the serveStatic call before actually serving the file
-  debug(("server.serveStatic(" + std::string(sanitizedJsFile) + ", LittleFS, " + scriptPath + ")").c_str());
-  
-  // Serve the script file statically
-  server.serveStatic(sanitizedJsFile.c_str(), LittleFS, scriptPath.c_str());
-  
-  // Add to servedFiles set
-  servedFiles.insert(scriptPath);
+  //-- Ensure path2JsFile starts with '/'
+  if (!sanitizedJsPath.empty() && sanitizedJsPath[0] != '/')
+  {
+    sanitizedJsPath.insert(0, 1, '/');
+  }
+
+  //-- Replace double slashes '//' with single '/'
+  for (size_t pos = 0; (pos = sanitizedJsPath.find("//", pos)) != std::string::npos; )
+  {
+    sanitizedJsPath.erase(pos, 1);
+  }
+
+  //-- Remove trailing slash (unless it's just "/")
+  if (sanitizedJsPath.length() > 1 && sanitizedJsPath.back() == '/')
+  {
+    sanitizedJsPath.pop_back();
+  }
+
+  //-- Check if file has already been served
+  if (servedFiles.find(sanitizedJsPath) != servedFiles.end()) 
+  {
+    debug(("Script [" + sanitizedJsPath + "] already served, skipping").c_str());
+    return;
+  }
+
+  debug(("Adding script to servedFiles: [" + sanitizedJsPath + "]").c_str());
+
+  //-- Extract `fName` (last part of the path) for `serveStatic()`
+  std::string fName = sanitizedJsPath.substr(sanitizedJsPath.find_last_of('/') + 1);
+  if (!fName.empty() && fName[0] != '/')
+  {
+    fName.insert(0, 1, '/');
+  }
+
+  //-- Debugging `serveStatic()` call
+  debug(("server.serveStatic(" + fName + ", LittleFS, " + sanitizedJsPath + ")").c_str());
+
+  //-- Serve the script file statically
+  server.serveStatic(fName.c_str(), LittleFS, sanitizedJsPath.c_str());
+
+  //-- Add to served files
+  servedFiles.insert(sanitizedJsPath);
 
 } // includeJsFile()
 
 
-void DisplayManager::includeCssFile(const char* cssFile)
+void DisplayManager::includeCssFile(const std::string &path2CssFile)
 {
-  debug(("DisplayManager::includeCssFile() called with cssFile:  [" + std::string(cssFile) + "]").c_str());
-  debug(("DisplayManager::includeCssFile() called with rootPath: [" + std::string(rootSystemPath) + "]").c_str());
+  std::string sanitizedCssPath = path2CssFile;
   
-  // Sanitize the cssFile by removing trailing slashes
-  std::string sanitizedCssFile = cssFile;
-  // Remove trailing slash
-  if (!sanitizedCssFile.empty() && sanitizedCssFile.back() == '/') {
-    sanitizedCssFile = sanitizedCssFile.substr(0, sanitizedCssFile.size() - 1);
-  }
+  debug(("DisplayManager::includeCssFile() called with path2CssFile: [" + sanitizedCssPath + "]").c_str());
 
-  std::string cssPath = rootSystemPath + sanitizedCssFile;
-
-  // Check if CSS has already been served
-  if (servedFiles.find(cssPath) != servedFiles.end()) {
-    debug(("CSS [" + cssPath + "] already served, skipping").c_str());
+  //-- Reject a single slash as an invalid path
+  if (sanitizedCssPath == "/") 
+  {
+    debug("ERROR: path2CssFile cannot be '/'");
     return;
   }
 
-  debug(("Adding CSS to servedFiles: [" + cssPath + "]").c_str());
-  
-  // Debug the serveStatic call before actually serving the file
-  debug(("server.serveStatic(" + std::string(sanitizedCssFile) + ", LittleFS, " + cssPath + ")").c_str());
-  
-  // Serve the CSS file statically
-  server.serveStatic(sanitizedCssFile.c_str(), LittleFS, cssPath.c_str());
-  
-  // Add to servedFiles set
-  servedFiles.insert(cssPath);
+  //-- Ensure path2CssFile starts with '/'
+  if (!sanitizedCssPath.empty() && sanitizedCssPath[0] != '/')
+  {
+    sanitizedCssPath.insert(0, 1, '/');
+  }
+
+  //-- Replace double slashes '//' with single '/'
+  for (size_t pos = 0; (pos = sanitizedCssPath.find("//", pos)) != std::string::npos; )
+  {
+    sanitizedCssPath.erase(pos, 1);
+  }
+
+  //-- Remove trailing slash (unless it's just "/")
+  if (sanitizedCssPath.length() > 1 && sanitizedCssPath.back() == '/')
+  {
+    sanitizedCssPath.pop_back();
+  }
+
+  //-- Check if CSS file has already been served
+  if (servedFiles.find(sanitizedCssPath) != servedFiles.end()) 
+  {
+    debug(("CSS [" + sanitizedCssPath + "] already served, skipping").c_str());
+    return;
+  }
+
+  debug(("Adding CSS to servedFiles: [" + sanitizedCssPath + "]").c_str());
+
+  //-- Extract `fName` (last part of the path) for `serveStatic()`
+  std::string fName = sanitizedCssPath.substr(sanitizedCssPath.find_last_of('/') + 1);
+  if (!fName.empty() && fName[0] != '/')
+  {
+    fName.insert(0, 1, '/');
+  }
+
+  //-- Debugging `serveStatic()` call
+  debug(("server.serveStatic(" + fName + ", LittleFS, " + sanitizedCssPath + ")").c_str());
+
+  //-- Serve the CSS file statically
+  server.serveStatic(fName.c_str(), LittleFS, sanitizedCssPath.c_str());
+
+  //-- Add to served files
+  servedFiles.insert(sanitizedCssPath);
 
 } // includeCssFile()
-
 
 void DisplayManager::callJsFunction(const char* functionName)
 {
