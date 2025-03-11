@@ -13,7 +13,7 @@
 
 #define CLOCK_UPDATE_INTERVAL  1000
 
-Networking* networking = nullptr;
+Networking* network = nullptr;
 Stream* debug = nullptr;
 
 DisplayManager dm(80);
@@ -397,10 +397,10 @@ void setup()
     delay(3000);
 
     //-- Connect to WiFi
-    networking = new Networking();
+    network = new Networking();
     
     //-- Parameters: hostname, resetWiFi pin, serial object, baud rate
-    debug = networking->begin("networkDM", 0, Serial, 115200);
+    debug = network->begin("networkDM", 0, Serial, 115200);
     
     debug->println("\nWiFi connected");
     debug->print("IP address: ");
@@ -442,6 +442,7 @@ void setup()
 
 void loop()
 {
+  network->loop();
   dm.server.handleClient();
   dm.ws.loop();
   updateCounter();
