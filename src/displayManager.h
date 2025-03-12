@@ -64,7 +64,7 @@ class DisplayManager
     void addMenu(const char* pageName, const char* menuName);
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback);
     void addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url);
-    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(uint8_t)> callback, uint8_t param);
+    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(const char*)> callback, const char* param);
     void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback = nullptr);
     void disableMenuItem(const char* pageName, const char* menuName, const char* itemName);
     void enableMenuItem(const char* pageName, const char* menuName, const char* itemName);
@@ -76,7 +76,6 @@ class DisplayManager
     std::string getSystemFilePath() const;
     void includeCssFile(const std::string &cssFile);
     void includeJsFile(const std::string &scriptFile);
-//  void addSystemFile(const std::string &fileName, bool setServe = true);
     void callJsFunction(const char* functionName);
     void pageIsLoaded(std::function<void()> callback);
 

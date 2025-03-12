@@ -48,39 +48,6 @@ void mainCallback2()
     dm.activatePage("InputPage");
 }
 
-void handleCounterMenu(uint8_t param)
-{
-  switch (param)
-  {
-    case 1: {
-              dm.setMessage("Counter: Start clicked!", 3);
-              dm.enableMenuItem("CounterPage", "StopWatch", "Stop");
-              dm.disableMenuItem("CounterPage", "StopWatch", "Reset");
-              dm.disableMenuItem("CounterPage", "StopWatch", "Start");
-              counterRunning = true;
-              dm.setPlaceholder("CounterPage", "counterState", "Started");
-            }
-            break;
-    case 2: {
-              dm.setMessage("Counter: Stop clicked!", 3);
-              dm.disableMenuItem("CounterPage","StopWatch", "Stop");
-              dm.enableMenuItem("CounterPage","StopWatch", "Start");
-              dm.enableMenuItem("CounterPage","StopWatch", "Reset");
-              counterRunning = false;
-              dm.setPlaceholder("CounterPage", "counterState", "Stopped");
-            }
-            break;
-    case 3: {
-              dm.setMessage("Counter: Reset clicked!", 3);
-              counterRunning = false;
-              counter = 0;
-              dm.setPlaceholder("CounterPage", "counterState", "Reset");
-              dm.setPlaceholder("CounterPage", "counter", counter);
-            }
-            break;
-  }
-} 
-
 
 void exitCounterCallback()
 {
@@ -88,40 +55,6 @@ void exitCounterCallback()
     dm.activatePage("Main");
 }
 
-void handleInputMenu(uint8_t param)
-{
-  switch (param)
-  {
-    case 1: {
-              dm.setMessage("InputPage: Initialize Input!", 3);
-              dm.setPlaceholder("InputPage", "input1", 12345);
-              dm.setPlaceholder("InputPage", "input2", "TextString");
-              dm.setPlaceholder("InputPage", "input3", 123.45);
-              int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
-              dm.setPlaceholder("InputPage", "counter", counter);
-            }
-            break;
-    case 2: {
-              dm.setMessage("InputTest: save Input!", 1);
-              int input1 = dm.getPlaceholder("InputPage", "input1").asInt();
-              Serial.printf("input1: [%d]\n", input1);
-              char buff[100] = {};
-              snprintf(buff, sizeof(buff), "%s", dm.getPlaceholder("InputPage", "input2").c_str());
-              Serial.printf("input2: [%s]\n", buff);
-              float input3 = dm.getPlaceholder("InputPage", "input3").asFloat();
-              Serial.printf("input3: [%f]\n", input3); 
-              int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
-              dm.setPlaceholder("InputPage", "counter", counter);
-              Serial.printf("counter: [%d]\n", counter);
-            }
-            break;
-    case 3: {
-              dm.setMessage("InputTest: Exit Input!", 3);
-              dm.activatePage("Main");
-            }
-            break;
-  }
-}
 
 
 void mainCallback3()
@@ -137,27 +70,32 @@ void processInputCallback(const std::map<std::string, std::string>& inputValues)
   debug->printf("Received %d input values\n", inputValues.size());
   
   // Access input values directly from the map
-  if (inputValues.count("input1") > 0) {
+  if (inputValues.count("input1") > 0) 
+  {
     const std::string& value = inputValues.at("input1");
     debug->printf("Input1 (raw): %s\n", value.c_str());
     
     // Convert to integer if needed
     int intValue = atoi(value.c_str());
     debug->printf("Input1 (as int): %d\n", intValue);
-  } else {
+  } else 
+  {
     debug->println("Input1 not found in input values");
   }
   
-  if (inputValues.count("input2") > 0) {
+  if (inputValues.count("input2") > 0) 
+  {
     const std::string& value = inputValues.at("input2");
     debug->printf("Input2: %s\n", value.c_str());
-  } else {
+  } else 
+  {
     debug->println("Input2 not found in input values");
   }
   
   // Print all input values for debugging
   debug->println("All input values:");
-  for (const auto& pair : inputValues) {
+  for (const auto& pair : inputValues) 
+  {
     debug->printf("  %s = %s\n", pair.first.c_str(), pair.second.c_str());
   }
 }
@@ -173,25 +111,77 @@ void doJsFunction()
     dm.callJsFunction("isFSmanagerLoaded");
 }
 
-void handleFSmanagerMenu(uint8_t param)
+
+void handleMenuItem(const char* param)
 {
-  switch (param)
+  if (strcmp(param, "Input-1") == 0) 
   {
-    case 1: {
-              dm.setMessage("FS Manager : List LittleFS Clicked!", 5);
-              dm.disableID("FSmanagerPage", "fsm_addFolder");
-              dm.disableID("FSmanagerPage", "fsm_fileUpload");
-              dm.enableID("FSmanagerPage",  "fsm_fileList");
-              dm.callJsFunction("loadFileList");
-            }
-            break;
-    case 4: {
-              dm.setMessage("FS Manager : Exit Clicked!", 5);
-              dm.activatePage("Main");
-            }
-            break;
+    dm.setMessage("InputPage: Initialize Input!", 3);
+    dm.setPlaceholder("InputPage", "input1", 12345);
+    dm.setPlaceholder("InputPage", "input2", "TextString");
+    dm.setPlaceholder("InputPage", "input3", 123.45);
+    int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
+    dm.setPlaceholder("InputPage", "counter", counter);
   }
-}
+  else if (strcmp(param, "Input-2") == 0) 
+  {
+    dm.setMessage("InputTest: save Input!", 1);
+    int input1 = dm.getPlaceholder("InputPage", "input1").asInt();
+    Serial.printf("input1: [%d]\n", input1);
+    char buff[100] = {};
+    snprintf(buff, sizeof(buff), "%s", dm.getPlaceholder("InputPage", "input2").c_str());
+    Serial.printf("input2: [%s]\n", buff);
+    float input3 = dm.getPlaceholder("InputPage", "input3").asFloat();
+    Serial.printf("input3: [%f]\n", input3); 
+    int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
+    dm.setPlaceholder("InputPage", "counter", counter);
+    Serial.printf("counter: [%d]\n", counter);
+  }
+  else if (strcmp(param, "Input-3") == 0) 
+  {
+    dm.setMessage("InputTest: Exit Input!", 3);
+    dm.activatePage("Main");
+  }
+  else if (strcmp(param, "Counter-1") == 0) 
+  {
+    dm.setMessage("Counter: Start clicked!", 3);
+    dm.enableMenuItem("CounterPage", "StopWatch", "Stop");
+    dm.disableMenuItem("CounterPage", "StopWatch", "Reset");
+    dm.disableMenuItem("CounterPage", "StopWatch", "Start");
+    counterRunning = true;
+    dm.setPlaceholder("CounterPage", "counterState", "Started");
+  }
+  else if (strcmp(param, "Counter-2") == 0) 
+  {
+    dm.setMessage("Counter: Stop clicked!", 3);
+    dm.disableMenuItem("CounterPage","StopWatch", "Stop");
+    dm.enableMenuItem("CounterPage","StopWatch", "Start");
+    dm.enableMenuItem("CounterPage","StopWatch", "Reset");
+    counterRunning = false;
+    dm.setPlaceholder("CounterPage", "counterState", "Stopped");
+  }
+  else if (strcmp(param, "Counter-3") == 0) 
+  {
+    dm.setMessage("Counter: Reset clicked!", 3);
+    counterRunning = false;
+    counter = 0;
+    dm.setPlaceholder("CounterPage", "counterState", "Reset");
+    dm.setPlaceholder("CounterPage", "counter", counter);
+  }
+  else if (strcmp(param, "FSM-1") == 0) 
+  {
+      dm.setMessage("FS Manager : List LittleFS Clicked!", 5);
+      dm.disableID("FSmanagerPage", "fsm_addFolder");
+      dm.disableID("FSmanagerPage", "fsm_fileUpload");
+      dm.enableID("FSmanagerPage",  "fsm_fileList");
+      dm.callJsFunction("loadFileList");
+  } 
+  else if (strcmp(param, "FSM-4") == 0) 
+  {
+      dm.setMessage("FS Manager : Exit Clicked!", 5);
+      dm.activatePage("Main");
+  }
+} //  handleMenuItem()
 
 void setupMainPage()
 {
@@ -258,9 +248,9 @@ void setupCounterPage()
     dm.setPageTitle("CounterPage", "StopWatch");
     //-- Add Counter menu
     dm.addMenu("CounterPage", "StopWatch");
-    dm.addMenuItem("CounterPage", "StopWatch", "Start", handleCounterMenu, 1);
-    dm.addMenuItem("CounterPage", "StopWatch", "Stop",  handleCounterMenu, 2);
-    dm.addMenuItem("CounterPage", "StopWatch", "Reset", handleCounterMenu, 3);
+    dm.addMenuItem("CounterPage", "StopWatch", "Start", handleMenuItem, "Counter-1");
+    dm.addMenuItem("CounterPage", "StopWatch", "Stop",  handleMenuItem, "Counter-2");
+    dm.addMenuItem("CounterPage", "StopWatch", "Reset", handleMenuItem, "Counter-3");
     dm.addMenuItem("CounterPage", "StopWatch", "Exit",  exitCounterCallback);
 
     dm.disableMenuItem("CounterPage", "StopWatch", "Reset");
@@ -296,9 +286,9 @@ void setupInputPage()
     dm.setPageTitle("InputPage", "InputTest");
     //-- Add InputPage menu
     dm.addMenu("InputPage", "InputTest");
-    dm.addMenuItem("InputPage", "InputTest", "Initialize", handleInputMenu, 1);
-    dm.addMenuItem("InputPage", "InputTest", "Save",       handleInputMenu, 2);
-    dm.addMenuItem("InputPage", "InputTest", "Exit",       handleInputMenu, 3 );
+    dm.addMenuItem("InputPage", "InputTest", "Initialize", handleMenuItem, "Input-1");
+    dm.addMenuItem("InputPage", "InputTest", "Save",       handleMenuItem, "Input-2");
+    dm.addMenuItem("InputPage", "InputTest", "Exit",       handleMenuItem, "Input-3" );
 }
 
 void setupFSmanagerPage()
@@ -337,10 +327,10 @@ void setupFSmanagerPage()
   dm.setPageTitle("FSmanagerPage", "FileSystem Manager");
   //-- Add InputPage menu
   dm.addMenu("FSmanagerPage", "FS Manager");
-  dm.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleFSmanagerMenu, 1);
+  dm.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleMenuItem, "FSM-1");
   dm.addMenuItemPopup("FSmanagerPage", "FS Manager", "Upload File", popupUploadFile);
   dm.addMenuItemPopup("FSmanagerPage", "FS Manager", "Create Folder", popupNewFolder);
-  dm.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleFSmanagerMenu, 4);
+  dm.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleMenuItem, "FSM-4");
 
 }
 
