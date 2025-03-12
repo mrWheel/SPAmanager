@@ -732,24 +732,24 @@ void DisplayManager::addMenuItem(const char* pageName, const char* menuName, con
     }
 }
 
-void DisplayManager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(uint8_t)> callback, uint8_t param) 
+void DisplayManager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(const char*)> callback, const char* param) 
 {
-    debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + " (callback with param)").c_str());
-    for (auto& menu : menus) 
+  debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + " (callback with param)").c_str());
+  for (auto& menu : menus) 
+  {
+    if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
     {
-        if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
-        {
-            MenuItem item;
-            item.setName(itemName);
-            item.setUrl(nullptr);
-            item.callback = [callback, param]() { callback(param); };
-            menu.items.push_back(item);
-            if (activePage && strcmp(activePage->name, pageName) == 0) {
-                updateClients();
-            }
-            break;
-        }
+      MenuItem item;
+      item.setName(itemName);
+      item.setUrl(nullptr);
+      item.callback = [callback, param]() { callback(param); };
+      menu.items.push_back(item);
+      if (activePage && strcmp(activePage->name, pageName) == 0) {
+        updateClients();
+      }
+      break;
     }
+  }
 }
 
 void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback)

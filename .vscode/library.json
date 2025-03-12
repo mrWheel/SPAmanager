@@ -1,0 +1,20 @@
+{
+  "name": "DisplayManager",
+  "version": "2.0.0",
+  "description": "A library that helps creating SPA's for both PlatformIO and Arduino IDE",
+  "repository": {
+      "type": "git",
+      "url": "https://github.com/mrWheel/displayManager.git"
+  },
+  "authors": [
+      {
+          "name": "Willem Aandewiel",
+          "email": "Willem@Aandewiel.nl",
+          "url": "https://www.aandewiel.nl"
+      }
+  ],
+  "license": "MIT",
+  "frameworks": ["arduino"],
+  "platforms": ["espressif32", "espressif8266"],
+  "examples": ["examples/*/*.ino"]
+}
