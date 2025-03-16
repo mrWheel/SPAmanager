@@ -4,11 +4,11 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFiManager.h>
-#include "displayManager.h"
+#include "SPAmanager.h"
 
 #define CLOCK_UPDATE_INTERVAL  1000
 
-DisplayManager dm(80);
+SPAmanager spa(80);
 
 uint32_t lastCounterUpdate = 0;
 
@@ -17,137 +17,106 @@ uint32_t  counter = 0;
 bool counterRunning = false;
 
 
-void vDelay(uint delayMs) 
-{
-  uint32_t previousMillis = millis();
-  
-  while (millis() - previousMillis < delayMs) 
-  {
-    yield();
-  }
-}
     
 void mainCallback1()
 {
-    dm.setErrorMessage("Main Menu \"Counter\" clicked!", 5);
-    dm.activatePage("CounterPage");
-}
+    spa.setErrorMessage("Main Menu \"Counter\" clicked!", 5);
+    spa.activatePage("CounterPage");
+
+} // mainCallback1()
     
 void mainCallback2()
 {
-    dm.setErrorMessage("Main Menu \"Input\" clicked!", 5);
-    dm.activatePage("InputPage");
-}
+    spa.setErrorMessage("Main Menu \"Input\" clicked!", 5);
+    spa.activatePage("InputPage");
+
+} // mainCallback2()
 
 void startCounterCallback()
 {
-    dm.setMessage("Counter: Start clicked!", 3);
-    dm.enableMenuItem("CounterPage", "StopWatch", "Stop");
-    dm.disableMenuItem("CounterPage", "StopWatch", "Reset");
-    dm.disableMenuItem("CounterPage", "StopWatch", "Start");
+    spa.setMessage("Counter: Start clicked!", 3);
+    spa.enableMenuItem("CounterPage", "Counter", "Stop");
+    spa.disableMenuItem("CounterPage", "Counter", "Reset");
+    spa.disableMenuItem("CounterPage", "Counter", "Start");
     counterRunning = true;
-    dm.setPlaceholder("CounterPage", "counterState", "Started");
-}
+    spa.setPlaceholder("CounterPage", "counterState", "Started");
+
+} // startCounterCallback()
 
 void stopCounterCallback()
 {
-    dm.setMessage("Counter: Stop clicked!", 3);
-    dm.disableMenuItem("CounterPage","StopWatch", "Stop");
-    dm.enableMenuItem("CounterPage","StopWatch", "Start");
-    dm.enableMenuItem("CounterPage","StopWatch", "Reset");
+    spa.setMessage("Counter: Stop clicked!", 3);
+    spa.disableMenuItem("CounterPage","Counter", "Stop");
+    spa.enableMenuItem("CounterPage","Counter", "Start");
+    spa.enableMenuItem("CounterPage","Counter", "Reset");
     counterRunning = false;
-    dm.setPlaceholder("CounterPage", "counterState", "Stopped");
-}
+    spa.setPlaceholder("CounterPage", "counterState", "Stopped");
+
+} // stopCounterCallback()
 
 void resetCounterCallback()
 {
-    dm.setMessage("Counter: Reset clicked!", 3);
+    spa.setMessage("Counter: Reset clicked!", 3);
     counterRunning = false;
     counter = 0;
-    dm.setPlaceholder("CounterPage", "counterState", "Reset");
-    dm.setPlaceholder("CounterPage", "counter", counter);
-}
+    spa.setPlaceholder("CounterPage", "counterState", "Reset");
+    spa.setPlaceholder("CounterPage", "counter", counter);
+
+} // resetCounterCallback()
 
 void exitCounterCallback()
 {
-    dm.setMessage("Counter: \"Exit\" clicked!", 10);
-    dm.activatePage("Main");
-}
+    spa.setMessage("Counter: \"Exit\" clicked!", 10);
+    spa.activatePage("Main");
 
-/*** 
-void initInputCallback()
+} // exitCounterCallback()
+
+
+void handleInputMenu(const char* param)
 {
-    dm.setMessage("InputPage: Initialize Input!", 3);
-    dm.setPlaceholder("InputPage", "input1", 12345);
-    dm.setPlaceholder("InputPage", "input2", "TextString");
-    dm.setPlaceholder("InputPage", "input3", 123.45);
-    int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
-    dm.setPlaceholder("InputPage", "counter", counter);
-}
-
-void saveInputCallback()
-{
-    dm.setMessage("InputTest: save Input!", 1);
-    int input1 = dm.getPlaceholder("InputPage", "input1").asInt();
-    Serial.printf("input1: [%d]\n", input1);
-    char buff[100] = {};
-    snprintf(buff, sizeof(buff), "%s", dm.getPlaceholder("InputPage", "input2").c_str());
-    Serial.printf("input2: [%s]\n", buff);
-    float input3 = dm.getPlaceholder("InputPage", "input3").asFloat();
-    Serial.printf("input3: [%f]\n", input3); 
-    int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
-    dm.setPlaceholder("InputPage", "counter", counter);
-    Serial.printf("counter: [%d]\n", counter);
-}
-
-***/
-
-void handleInputMenu(uint8_t param)
-{
-  switch (param)
+  if (strcmp(param, "1") == 0) 
   {
-    case 1: {
-              dm.setMessage("InputPage: Initialize Input!", 3);
-              dm.setPlaceholder("InputPage", "input1", 12345);
-              dm.setPlaceholder("InputPage", "input2", "TextString");
-              dm.setPlaceholder("InputPage", "input3", 123.45);
-              int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
-              dm.setPlaceholder("InputPage", "counter", counter);
-            }
-            break;
-    case 2: {
-              dm.setMessage("InputTest: save Input!", 1);
-              int input1 = dm.getPlaceholder("InputPage", "input1").asInt();
-              Serial.printf("input1: [%d]\n", input1);
-              char buff[100] = {};
-              snprintf(buff, sizeof(buff), "%s", dm.getPlaceholder("InputPage", "input2").c_str());
-              Serial.printf("input2: [%s]\n", buff);
-              float input3 = dm.getPlaceholder("InputPage", "input3").asFloat();
-              Serial.printf("input3: [%f]\n", input3); 
-              int counter = dm.getPlaceholder("CounterPage", "counter").asInt();
-              dm.setPlaceholder("InputPage", "counter", counter);
-              Serial.printf("counter: [%d]\n", counter);
-            }
-            break;
-    case 3: {
-              dm.setMessage("InputTest: Exit Input!", 3);
-              dm.activatePage("Main");
-            }
-            break;
+      spa.setMessage("InputPage: Initialize Input!", 3);
+      spa.setPlaceholder("InputPage", "input1", 12345);
+      spa.setPlaceholder("InputPage", "input2", "TextString");
+      spa.setPlaceholder("InputPage", "input3", 123.45);
+      int counter = spa.getPlaceholder("CounterPage", "counter").asInt();
+      spa.setPlaceholder("InputPage", "counter", counter);
   }
-}
+  else if (strcmp(param, "2") == 0) 
+  {
+      spa.setMessage("InputTest: save Input!", 1);
+      int input1 = spa.getPlaceholder("InputPage", "input1").asInt();
+      Serial.printf("input1: [%d]\n", input1);
+      char buff[100] = {};
+      snprintf(buff, sizeof(buff), "%s", spa.getPlaceholder("InputPage", "input2").c_str());
+      Serial.printf("input2: [%s]\n", buff);
+      float input3 = spa.getPlaceholder("InputPage", "input3").asFloat();
+      Serial.printf("input3: [%f]\n", input3); 
+      int counter = spa.getPlaceholder("CounterPage", "counter").asInt();
+      spa.setPlaceholder("InputPage", "counter", counter);
+      Serial.printf("counter: [%d]\n", counter);
+  }
+  else if (strcmp(param, "3") == 0) 
+  {
+      spa.setMessage("InputTest: Exit Input!", 3);
+      spa.activatePage("Main");
+  }
+
+} // handleInputMenu()
 
 void setupMainPage()
 {
-    dm.addPage("Main", "<div style='font-size: 48px; text-align: center; font-weight: bold;'>basicDM page</div>");
+    spa.addPage("Main", "<div style='font-size: 48px; text-align: center; font-weight: bold;'>basicDM page</div>");
     
-    dm.setPageTitle("Main", "Display Manager Example");
+    spa.setPageTitle("Main", "Single Page Application Example");
     //-- Add Main menu
-    dm.addMenu("Main", "Main Menu");
-    dm.addMenuItem("Main", "Main Menu", "StopWatch", mainCallback1);
-    dm.addMenuItem("Main", "Main Menu", "InputTest", mainCallback2);
-    dm.addMenuItem("Main", "Main Menu", "Item3", "/");
-}
+    spa.addMenu("Main", "Main Menu");
+    spa.addMenuItem("Main", "Main Menu", "Counter", mainCallback1);
+    spa.addMenuItem("Main", "Main Menu", "InputTest", mainCallback2);
+    spa.addMenuItem("Main", "Main Menu", "Item3", "/");
+
+} // setupMainPage()
 
 void setupCounterPage()
 {
@@ -155,20 +124,22 @@ void setupCounterPage()
     <div id='counterState' style='font-size: 30px; text-align: center; font-weight: bold;'></div>
     <div id='counter' style='font-size: 48px; text-align: right; font-weight: bold;'>0</div>)";
   
-    dm.addPage("CounterPage", counterPage);
-    dm.setPageTitle("CounterPage", "StopWatch");
+    spa.addPage("CounterPage", counterPage);
+    spa.setPageTitle("CounterPage", "Counter");
     //-- Add Counter menu
-    dm.addMenu("CounterPage", "StopWatch");
-    dm.addMenuItem("CounterPage", "StopWatch", "Start", startCounterCallback);
-    dm.addMenuItem("CounterPage", "StopWatch", "Stop",  stopCounterCallback);
-    dm.addMenuItem("CounterPage", "StopWatch", "Reset", resetCounterCallback);
-    dm.addMenuItem("CounterPage", "StopWatch", "Exit",  exitCounterCallback);
+    spa.addMenu("CounterPage", "Counter");
+    spa.addMenuItem("CounterPage", "Counter", "Start", startCounterCallback);
+    spa.addMenuItem("CounterPage", "Counter", "Stop",  stopCounterCallback);
+    spa.addMenuItem("CounterPage", "Counter", "Reset", resetCounterCallback);
+    spa.addMenuItem("CounterPage", "Counter", "Exit",  exitCounterCallback);
 
-    dm.disableMenuItem("CounterPage", "StopWatch", "Reset");
-    dm.disableMenuItem("CounterPage", "StopWatch", "Stop");
+    spa.disableMenuItem("CounterPage", "Counter", "Reset");
+    spa.disableMenuItem("CounterPage", "Counter", "Stop");
 
-    dm.setPlaceholder("CounterPage", "counterState", "Stopped");
-}
+    spa.setPlaceholder("CounterPage", "counterState", "Stopped");
+
+} // setupCounterPage()
+
 
 void setupInputPage()
 {
@@ -187,20 +158,22 @@ void setupInputPage()
         <br>
         <br>
 
-        <label for="counter">StopWatch:</label>
+        <label for="counter">Counter:</label>
         <input type="number" step="1" id="counter" placeholder="CounterValue" disabled>
         <br>
     </form>
     )";
   
-    dm.addPage("InputPage", inputPage);
-    dm.setPageTitle("InputPage", "InputTest");
+    spa.addPage("InputPage", inputPage);
+    spa.setPageTitle("InputPage", "InputTest");
     //-- Add InputPage menu
-    dm.addMenu("InputPage", "InputTest");
-    dm.addMenuItem("InputPage", "InputTest", "Initialize", handleInputMenu, 1);
-    dm.addMenuItem("InputPage", "InputTest", "Save",  handleInputMenu, 2);
-    dm.addMenuItem("InputPage", "InputTest", "Exit",  handleInputMenu, 3);
-}
+    spa.addMenu("InputPage", "InputTest");
+    spa.addMenuItem("InputPage", "InputTest", "Initialize", handleInputMenu, "1");
+    spa.addMenuItem("InputPage", "InputTest", "Save",  handleInputMenu, "2");
+    spa.addMenuItem("InputPage", "InputTest", "Exit",  handleInputMenu, "3");
+
+} // setupInputPage()
+
 
 void updateCounter() 
 {
@@ -209,11 +182,11 @@ void updateCounter()
         if (counterRunning) 
         {
             counter++;
-            dm.setPlaceholder("CounterPage", "counter", counter);
+            spa.setPlaceholder("CounterPage", "counter", counter);
             lastCounterUpdate = millis();
         }
     }
-}
+} // updateCounter()
 
 void setup()
 {
@@ -229,18 +202,21 @@ void setup()
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
     
-    dm.begin(&Serial);
+    spa.begin("/SYS", &Serial);
     setupMainPage();
     setupCounterPage();
     setupInputPage();
-    dm.activatePage("Main");
+    spa.activatePage("Main");
     
     Serial.println("Done with setup() ..\n");
-}
+
+} // setup()
+
 
 void loop()
 {
-    dm.server.handleClient();
-    dm.ws.loop();
+    spa.server.handleClient();
+    spa.ws.loop();
     updateCounter();
-}
+
+} // loop()
