@@ -1,6 +1,6 @@
-// displayManager.h
-#ifndef SPAMANAGER_H
-#define SPAMANAGER_H
+//----- SPAmanager.h -----
+#ifndef SPA_MANAGER_H
+#define SPA_MANAGER_H
 
 #include <WiFi.h>
 #include <WebServer.h>
@@ -14,32 +14,38 @@
 
 class SPAmanager 
 {
-  public:
-    WebServer server;
-    WebSocketsServer ws;
-
   private:
-    Stream* debugOut;
-    uint8_t currentClient;  // Store current connected client number
-    bool hasConnectedClient;  // Track if we have a connected client
-    std::string rootSystemPath;
-    std::string firstPageName;  // Store the name of the first page added
-    std::function<void()> pageLoadedCallback;
     static const size_t MAX_NAME_LEN = 32;
     static const size_t MAX_URL_LEN = 64;
     static const size_t MAX_CONTENT_LEN = 4096;
     static const size_t MAX_MESSAGE_LEN = 80;
     static const size_t MAX_VALUE_LEN = 32;
-    
-    char currentMessage[MAX_MESSAGE_LEN];
-    bool isError;
-    unsigned long messageEndTime;
 
   public:
+    WebServer server;
+    WebSocketsServer ws;
+    
     SPAmanager(uint16_t port = 80);
-
     void begin(const char* systemPath, Stream* debugOut = nullptr);
+    
+    //-- Page-related methods
     void addPage(const char* pageName, const char* html);
+    void activatePage(const char* pageName);
+    void setPageTitle(const char* pageName, const char* title);
+    
+    //-- Menu-related methods
+    void addMenu(const char* pageName, const char* menuName);
+    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback);
+    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url);
+    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(const char*)> callback, const char* param);
+    void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback = nullptr);
+    void enableMenuItem(const char* pageName, const char* menuName, const char* itemName);
+    void disableMenuItem(const char* pageName, const char* menuName, const char* itemName);
+    
+    //-- UI/Interaction methods
+    void setMessage(const char* message, int duration);
+    void setErrorMessage(const char* message, int duration);
+    void callJsFunction(const char* functionName);
     template <typename T>
     void setPlaceholder(const char* pageName, const char* placeholder, T value);
     class PlaceholderValue 
@@ -58,28 +64,28 @@ class SPAmanager
         char value[MAX_VALUE_LEN];
       
     };
-    
     PlaceholderValue getPlaceholder(const char* pageName, const char* placeholder);
-    void activatePage(const char* pageName);
-    void addMenu(const char* pageName, const char* menuName);
-    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback);
-    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url);
-    void addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(const char*)> callback, const char* param);
-    void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback = nullptr);
-    void disableMenuItem(const char* pageName, const char* menuName, const char* itemName);
-    void enableMenuItem(const char* pageName, const char* menuName, const char* itemName);
-    void setPageTitle(const char* pageName, const char* title);
-    void setMessage(const char* message, int duration);
-    void setErrorMessage(const char* message, int duration);
     void enableID(const char* pageName, const char* id);
     void disableID(const char* pageName, const char* id);
+    void pageIsLoaded(std::function<void()> callback);
+    
+    // Resource methods
     std::string getSystemFilePath() const;
     void includeCssFile(const std::string &cssFile);
     void includeJsFile(const std::string &scriptFile);
-    void callJsFunction(const char* functionName);
-    void pageIsLoaded(std::function<void()> callback);
 
   private:
+    Stream* debugOut;
+    uint8_t currentClient;  //-- Store current connected client number
+    bool hasConnectedClient;  //-- Track if we have a connected client
+    std::string rootSystemPath;
+    std::string firstPageName;  //-- Store the name of the first page added
+    std::function<void()> pageLoadedCallback;
+    
+    char currentMessage[MAX_MESSAGE_LEN];
+    bool isError;
+    unsigned long messageEndTime;
+    
     struct MenuItem 
     {
         char name[MAX_NAME_LEN];
@@ -158,15 +164,23 @@ class SPAmanager
     Page* activePage;
     //-- Track which scripts have been served to avoid duplicates
     std::set<std::string> servedFiles;  
+    
+    //-- Server setup and handling
     void setupWebServer();
     void handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
-    void broadcastState();
-    void updateClients();
+    
+    //-- UI generation
     std::string generateHTML();
     std::string generateMenuHTML();
-    void debug(const char* message);
     void setHeaderTitle(const char* title);
+    
+    //-- State management
+    void broadcastState();
+    void updateClients();
+    
+    //-- Utility methods
+    void debug(const char* message);
     void handleJsFunctionResult(const char* functionName, bool success);
 };
 
-#endif // DISPLAYMANAGER_H
+#endif // SPA_MANAGER_H
