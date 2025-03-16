@@ -1,11 +1,11 @@
-// displayManager.cpp
-#include "displayManager.h"
+//----- SPAmanager.cpp -----
+#include "SPAmanager.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <sstream>
 #include <WString.h>
 
-DisplayManager::DisplayManager(uint16_t port) 
+SPAmanager::SPAmanager(uint16_t port) 
     : server(port)
     , ws(81)
     , debugOut(nullptr)
@@ -21,10 +21,10 @@ DisplayManager::DisplayManager(uint16_t port)
     , servedFiles()  // Initialize empty set
 
 {
-    debug(("displayManager::  constructor called with port: " + std::to_string(port)).c_str());
+    debug(("SPAmanager::  constructor called with port: " + std::to_string(port)).c_str());
 }
 
-void DisplayManager::begin(const char* systemPath, Stream* debugOut) 
+void SPAmanager::begin(const char* systemPath, Stream* debugOut) 
 {
     // Convert to std::string for manipulation
     std::string path = systemPath;
@@ -55,7 +55,7 @@ void DisplayManager::begin(const char* systemPath, Stream* debugOut)
 
 } //  begin()
 
-void DisplayManager::setupWebServer() 
+void SPAmanager::setupWebServer() 
 {
     debug("setupWebServer() called");
     ws.begin();
@@ -63,15 +63,15 @@ void DisplayManager::setupWebServer()
         handleWebSocketEvent(num, type, payload, length);
     });
 
-    std::string filePath = std::string(rootSystemPath) + "/displayManager.css";
-    server.serveStatic("/displayManager.css", LittleFS, filePath.c_str());
-    debug(("server.serveStatic(/displayManager.css, LittleFS, " + filePath +")").c_str());
-    filePath = std::string(rootSystemPath) + "/displayManager.html";
-    server.serveStatic("/displayManager.html", LittleFS, filePath.c_str());
-    debug(("server.serveStatic(/displayManager.html, LittleFS, " + filePath +")").c_str());
-    filePath = std::string(rootSystemPath) + "/displayManager.js";
-    server.serveStatic("/displayManager.js", LittleFS, filePath.c_str());
-    debug(("server.serveStatic(/displayManager.js, LittleFS, " + filePath +")").c_str());
+    std::string filePath = std::string(rootSystemPath) + "/SPAmanager.css";
+    server.serveStatic("/SPAmanager.css", LittleFS, filePath.c_str());
+    debug(("server.serveStatic(/SPAmanager.css, LittleFS, " + filePath +")").c_str());
+    filePath = std::string(rootSystemPath) + "/SPAmanager.html";
+    server.serveStatic("/SPAmanager.html", LittleFS, filePath.c_str());
+    debug(("server.serveStatic(/SPAmanager.html, LittleFS, " + filePath +")").c_str());
+    filePath = std::string(rootSystemPath) + "/SPAmanager.js";
+    server.serveStatic("/SPAmanager.js", LittleFS, filePath.c_str());
+    debug(("server.serveStatic(/SPAmanager.js, LittleFS, " + filePath +")").c_str());
     filePath = std::string(rootSystemPath) + "/disconnected.html";
     server.serveStatic("/disconnected.html", LittleFS, filePath.c_str());
     debug(("server.serveStatic(/disconnected.html, LittleFS, " + filePath).c_str());
@@ -84,7 +84,7 @@ void DisplayManager::setupWebServer()
 
 
 
-void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) 
+void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) 
 {
     if (type == WStype_CONNECTED) 
     {
@@ -346,7 +346,7 @@ void DisplayManager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * 
 
   } // onWebSocketEvent()
 
-void DisplayManager::broadcastState() 
+void SPAmanager::broadcastState() 
 {
     const size_t capacity = JSON_ARRAY_SIZE(5) +
                            JSON_ARRAY_SIZE(10) +
@@ -404,7 +404,7 @@ void DisplayManager::broadcastState()
     }
 }
 
-void DisplayManager::addPage(const char* pageName, const char* html) 
+void SPAmanager::addPage(const char* pageName, const char* html) 
 {
     debug(("addPage() called with pageName: " + std::string(pageName)).c_str());
     
@@ -436,7 +436,7 @@ void DisplayManager::addPage(const char* pageName, const char* html)
     }
 }
 
-void DisplayManager::setPageTitle(const char* pageName, const char* title)
+void SPAmanager::setPageTitle(const char* pageName, const char* title)
 {
   debug(("setPageTitle() called with pageName: " + std::string(pageName) + ", title: " + std::string(title)).c_str());
   for (auto& page : pages) 
@@ -455,7 +455,7 @@ void DisplayManager::setPageTitle(const char* pageName, const char* title)
 
 
 template <typename T>
-void DisplayManager::setPlaceholder(const char* pageName, const char* placeholder, T value) {
+void SPAmanager::setPlaceholder(const char* pageName, const char* placeholder, T value) {
     //debug((std::string("setPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder + ", value: " + std::to_string(value)).c_str());
     for (auto& page : pages) {
         if (strcmp(page.name, pageName) == 0) {
@@ -523,7 +523,7 @@ void DisplayManager::setPlaceholder(const char* pageName, const char* placeholde
 
 // Explicit specialization for char* to handle string literals
 template <>
-void DisplayManager::setPlaceholder<const char*>(const char* pageName, const char* placeholder, const char* value) {
+void SPAmanager::setPlaceholder<const char*>(const char* pageName, const char* placeholder, const char* value) {
     debug((std::string("setPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder + ", value: " + value).c_str());
     for (auto& page : pages) {
         if (strcmp(page.name, pageName) == 0) {
@@ -589,7 +589,7 @@ void DisplayManager::setPlaceholder<const char*>(const char* pageName, const cha
     }
 }
 
-DisplayManager::PlaceholderValue DisplayManager::getPlaceholder(const char* pageName, const char* placeholder)
+SPAmanager::PlaceholderValue SPAmanager::getPlaceholder(const char* pageName, const char* placeholder)
 {
   debug((std::string("getPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
   std::string value = "";
@@ -659,12 +659,12 @@ DisplayManager::PlaceholderValue DisplayManager::getPlaceholder(const char* page
 }
 
 // Explicit template instantiations for setPlaceholder
-template void DisplayManager::setPlaceholder<unsigned int>(const char*, const char*, unsigned int);
-template void DisplayManager::setPlaceholder<int>(const char*, const char*, int);
-template void DisplayManager::setPlaceholder<float>(const char*, const char*, float);
-template void DisplayManager::setPlaceholder<double>(const char*, const char*, double);
+template void SPAmanager::setPlaceholder<unsigned int>(const char*, const char*, unsigned int);
+template void SPAmanager::setPlaceholder<int>(const char*, const char*, int);
+template void SPAmanager::setPlaceholder<float>(const char*, const char*, float);
+template void SPAmanager::setPlaceholder<double>(const char*, const char*, double);
 
-void DisplayManager::activatePage(const char* pageName) 
+void SPAmanager::activatePage(const char* pageName) 
 {
     debug(("activatePage() called with pageName: " + std::string(pageName)).c_str());
     for (auto& page : pages) 
@@ -681,7 +681,7 @@ void DisplayManager::activatePage(const char* pageName)
     updateClients();
 }
 
-void DisplayManager::addMenu(const char* pageName, const char* menuName) 
+void SPAmanager::addMenu(const char* pageName, const char* menuName) 
 {
     debug(("addMenu() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName)).c_str());
     Menu menu;
@@ -693,7 +693,7 @@ void DisplayManager::addMenu(const char* pageName, const char* menuName)
     }
 }
 
-void DisplayManager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback) 
+void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback) 
 {
     debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + " (callback)").c_str());
     for (auto& menu : menus) 
@@ -713,7 +713,7 @@ void DisplayManager::addMenuItem(const char* pageName, const char* menuName, con
     }
 }
 
-void DisplayManager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url) 
+void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url) 
 {
     debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + ", url: " + std::string(url)).c_str());
     for (auto& menu : menus) 
@@ -732,7 +732,7 @@ void DisplayManager::addMenuItem(const char* pageName, const char* menuName, con
     }
 }
 
-void DisplayManager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(const char*)> callback, const char* param) 
+void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(const char*)> callback, const char* param) 
 {
   debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + " (callback with param)").c_str());
   for (auto& menu : menus) 
@@ -752,7 +752,7 @@ void DisplayManager::addMenuItem(const char* pageName, const char* menuName, con
   }
 }
 
-void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback)
+void SPAmanager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback)
 {
   debug(("addMenuItemPopup() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", menuItem: " + std::string(menuItem)).c_str());
   
@@ -804,7 +804,7 @@ void DisplayManager::addMenuItemPopup(const char* pageName, const char* menuName
 }
 
 
-void DisplayManager::enableMenuItem(const char* pageName, const char* menuName, const char* itemName)
+void SPAmanager::enableMenuItem(const char* pageName, const char* menuName, const char* itemName)
 {
     debug(("enableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
     for (auto& menu : menus) 
@@ -828,7 +828,7 @@ void DisplayManager::enableMenuItem(const char* pageName, const char* menuName, 
     }
 }
 
-void DisplayManager::disableMenuItem(const char* pageName, const char* menuName, const char* itemName)
+void SPAmanager::disableMenuItem(const char* pageName, const char* menuName, const char* itemName)
 {
     debug(("disableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
     for (auto& menu : menus) 
@@ -852,7 +852,7 @@ void DisplayManager::disableMenuItem(const char* pageName, const char* menuName,
     }
 }
 
-void DisplayManager::enableID(const char* pageName, const char* id)
+void SPAmanager::enableID(const char* pageName, const char* id)
 {
   debug(("enableID() called with pageName: " + std::string(pageName) + ", id: " + std::string(id)).c_str());
   for (auto& page : pages)
@@ -919,7 +919,7 @@ void DisplayManager::enableID(const char* pageName, const char* id)
   }
 }
 
-void DisplayManager::disableID(const char* pageName, const char* id)
+void SPAmanager::disableID(const char* pageName, const char* id)
 {
   debug(("disableID() called with pageName: " + std::string(pageName) + ", id: " + std::string(id)).c_str());
   for (auto& page : pages)
@@ -987,11 +987,11 @@ void DisplayManager::disableID(const char* pageName, const char* id)
 }
 
 
-void DisplayManager::includeJsFile(const std::string &path2JsFile)
+void SPAmanager::includeJsFile(const std::string &path2JsFile)
 {
   std::string sanitizedJsPath = path2JsFile;
   
-  debug(("DisplayManager::includeJsFile() called with path2JsFile: [" + sanitizedJsPath + "]").c_str());
+  debug(("SPAmanager::includeJsFile() called with path2JsFile: [" + sanitizedJsPath + "]").c_str());
 
   //-- Reject a single slash as an invalid path
   if (sanitizedJsPath == "/") 
@@ -1046,11 +1046,11 @@ void DisplayManager::includeJsFile(const std::string &path2JsFile)
 } // includeJsFile()
 
 
-void DisplayManager::includeCssFile(const std::string &path2CssFile)
+void SPAmanager::includeCssFile(const std::string &path2CssFile)
 {
   std::string sanitizedCssPath = path2CssFile;
   
-  debug(("DisplayManager::includeCssFile() called with path2CssFile: [" + sanitizedCssPath + "]").c_str());
+  debug(("SPAmanager::includeCssFile() called with path2CssFile: [" + sanitizedCssPath + "]").c_str());
 
   //-- Reject a single slash as an invalid path
   if (sanitizedCssPath == "/") 
@@ -1104,9 +1104,9 @@ void DisplayManager::includeCssFile(const std::string &path2CssFile)
 
 } // includeCssFile()
 
-void DisplayManager::callJsFunction(const char* functionName)
+void SPAmanager::callJsFunction(const char* functionName)
 {
-  debug(("DisplayManager::callJsFunction() called with function: " + std::string(functionName)).c_str());
+  debug(("SPAmanager::callJsFunction() called with function: " + std::string(functionName)).c_str());
   if (hasConnectedClient)
   {
     const size_t capacity = JSON_OBJECT_SIZE(2); // Two key-value pairs
@@ -1126,7 +1126,7 @@ void DisplayManager::callJsFunction(const char* functionName)
   }
 }
 
-void DisplayManager::handleJsFunctionResult(const char* functionName, bool success)
+void SPAmanager::handleJsFunctionResult(const char* functionName, bool success)
 {
   if (success)
   {
@@ -1138,7 +1138,7 @@ void DisplayManager::handleJsFunctionResult(const char* functionName, bool succe
   }
 }
 
-void DisplayManager::setMessage(const char* message, int duration) 
+void SPAmanager::setMessage(const char* message, int duration) 
 {
     debug(("setMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
     strncpy(currentMessage, message, MAX_MESSAGE_LEN-1);
@@ -1148,7 +1148,7 @@ void DisplayManager::setMessage(const char* message, int duration)
     updateClients();
 }
 
-void DisplayManager::setErrorMessage(const char* message, int duration) 
+void SPAmanager::setErrorMessage(const char* message, int duration) 
 {
     debug(("setErrorMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
     strncpy(currentMessage, message, MAX_MESSAGE_LEN-1);
@@ -1158,7 +1158,7 @@ void DisplayManager::setErrorMessage(const char* message, int duration)
     updateClients();
 }
 
-void DisplayManager::updateClients() 
+void SPAmanager::updateClients() 
 {
     if (messageEndTime > 0 && millis() >= messageEndTime) 
     {
@@ -1168,23 +1168,23 @@ void DisplayManager::updateClients()
     broadcastState();
 }
 
-void DisplayManager::debug(const char* message) 
+void SPAmanager::debug(const char* message) 
 {
     if (debugOut) 
     {
-      std::string debugMessage = "displayManager:: " + std::string(message);
+      std::string debugMessage = "SPAmanager:: " + std::string(message);
       debugOut->println(debugMessage.c_str());
     }
 }
 
 
-void DisplayManager::pageIsLoaded(std::function<void()> callback)
+void SPAmanager::pageIsLoaded(std::function<void()> callback)
 {
   debug("pageIsLoaded() called");
   pageLoadedCallback = callback;
 }
 
-void DisplayManager::setHeaderTitle(const char* title)
+void SPAmanager::setHeaderTitle(const char* title)
 {
   debug(("setHeaderTitle() called with title: " + std::string(title)).c_str());
   if (hasConnectedClient)
@@ -1207,7 +1207,7 @@ void DisplayManager::setHeaderTitle(const char* title)
 }
 
 
-std::string DisplayManager::generateHTML()
+std::string SPAmanager::generateHTML()
 {
   debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
   return R"HTML(
@@ -1217,11 +1217,11 @@ std::string DisplayManager::generateHTML()
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Display Manager</title>
-    <link rel="stylesheet" href="/displayManager.css">
+    <link rel="stylesheet" href="/SPAmanager.css">
 </head>
 <body>
     <script>
-        window.location.href = "/displayManager.html";
+        window.location.href = "/SPAmanager.html";
     </script>
 </body>
 </html>
@@ -1230,7 +1230,7 @@ std::string DisplayManager::generateHTML()
 
 
 
-std::string DisplayManager::generateMenuHTML()
+std::string SPAmanager::generateMenuHTML()
 {
   debug("generateMenuHTML() called");
   std::string menuHTML = "";
@@ -1270,7 +1270,7 @@ std::string DisplayManager::generateMenuHTML()
 }
 
 
-std::string DisplayManager::getSystemFilePath() const
+std::string SPAmanager::getSystemFilePath() const
 {
   return rootSystemPath;
 }

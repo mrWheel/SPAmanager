@@ -1,6 +1,6 @@
 // displayManager.h
-#ifndef DISPLAYMANAGER_H
-#define DISPLAYMANAGER_H
+#ifndef SPAMANAGER_H
+#define SPAMANAGER_H
 
 #include <WiFi.h>
 #include <WebServer.h>
@@ -12,7 +12,7 @@
 #include <set>
 #include <map>
 
-class DisplayManager 
+class SPAmanager 
 {
   public:
     WebServer server;
@@ -36,7 +36,7 @@ class DisplayManager
     unsigned long messageEndTime;
 
   public:
-    DisplayManager(uint16_t port = 80);
+    SPAmanager(uint16_t port = 80);
 
     void begin(const char* systemPath, Stream* debugOut = nullptr);
     void addPage(const char* pageName, const char* html);

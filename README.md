@@ -1,7 +1,7 @@
 
-# DisplayManager Library
+# SPAmanager Library
 
-The `DisplayManager` library provides a simple and efficient way to manage Single Page dynamic web pages in Arduino and PlatformIO projects. It abstracts the complexities of handling web content, allowing you to focus on your core application logic.
+The `SPAmanager` library provides a simple and efficient way to manage Single Page dynamic web pages in Arduino and PlatformIO projects. It abstracts the complexities of handling web content, allowing you to focus on your core application logic.
 
 ## Features
 
@@ -13,7 +13,7 @@ The `DisplayManager` library provides a simple and efficient way to manage Singl
 
 ### Arduino IDE
 
-1. Download the latest release from the [GitHub releases page](https://github.com/mrWheel/displayManager/releases).
+1. Download the latest release from the [GitHub](https://github.com/mrWheel/SPAmanager).
 2. Open the Arduino IDE.
 3. Go to `Sketch` > `Include Library` > `Add .ZIP Library`.
 4. Select the downloaded ZIP file.
@@ -24,7 +24,7 @@ The `DisplayManager` library provides a simple and efficient way to manage Singl
 1. Open your PlatformIO project.
 2. Add the following line to your `platformio.ini` file:
     ```ini
-    lib_deps = https://github.com/mrWheel/displayManager
+    lib_deps = https://github.com/mrWheel/SPAmanager
     ```
 3. Save the `platformio.ini` file.
 4. The library will be installed automatically.
@@ -33,52 +33,52 @@ The `DisplayManager` library provides a simple and efficient way to manage Singl
 
 1. Include the library in your sketch:
     ```cpp
-    #include <DisplayManager.h>
+    #include <SPAmanager.h>
     ```
 2. Initialize the display manager and add a web page:
     ```cpp
-    DisplayManager display;
+    SPAmanager spamngr;
 
     void setup() {
-        display.begin();
-        display.addPage("Main", R"(
+        spamngr.begin();
+        spamngr.addPage("Main", R"(
             <html>
                 <head>
-                    <title>DisplayManager Example</title>
+                    <title>SPAmanager Example</title>
                 </head>
                 <body>
                     <h1>Hello, World!</h1>
-                    <p>This is a sample web page managed by DisplayManager.</p>
+                    <p>This is a sample web page managed by SPAmanager.</p>
                 </body>
             </html>
         )");
     }
 
     void loop() {
-        display.handleClient();
+        spamngr.handleClient();
     }
     ```
 
 ### Detailed Example
 
-Here is a more detailed example demonstrating how to use the `DisplayManager` library to create a dynamic web page that updates with sensor data:
+Here is a more detailed example demonstrating how to use the `SPAmanager` library to create a dynamic web page that updates with sensor data:
 
 ```cpp
-#include <DisplayManager.h>
+#include <SPAmanager.h>
 #include <DHT.h>
 
 #define DHTPIN 2     // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT11   // DHT 11
 
 DHT dht(DHTPIN, DHTTYPE);
-DisplayManager display;
+SPAmanager spamngr;
 
 void setup()
 {
     Serial.begin(115200);
     dht.begin();
-    display.begin();
-    display.addPage("Main", R"(
+    spamngr.begin();
+    spamngr.addPage("Main", R"(
         <html>
             <head>
                 <title>Sensor Data</title>
@@ -104,10 +104,10 @@ void loop()
         return;
     }
 
-    display.setPlaceholder("Main", "temp", String(t));
-    display.setPlaceholder("Main", "hum", String(h));
+    spamngr.setPlaceholder("Main", "temp", String(t));
+    spamngr.setPlaceholder("Main", "hum", String(h));
 
-    display.handleClient();
+    spamngr.handleClient();
 }
 ```
 
@@ -115,23 +115,23 @@ In this example, the web page displays the temperature and humidity readings fro
 
 ## API Reference
 
-#### `DisplayManager(uint16_t port = 80)`
+#### `SPAmanager(uint16_t port = 80)`
 
-Constructor for the DisplayManager class.
+Constructor for the SPAmanager class.
 - `port`: The port number for the web server (default is 80).
 
 Example:
 ```cpp
-// Create a DisplayManager instance with default port (80)
-DisplayManager display;
+// Create a SPAmanager instance with default port (80)
+SPAmanager spamngr;
 
 // Or specify a custom port
-DisplayManager display(8080);
+SPAmanager display(8080);
 ```
 
 #### `begin(Stream* debugOut = nullptr)`
 
-Initializes the `DisplayManager`. This method should be called in the `setup()` function.
+Initializes the `SPAmanager`. This method should be called in the `setup()` function.
 - `debugOut`: Optional parameter for debug output stream.
 
 Example:
@@ -140,10 +140,10 @@ void setup() {
   Serial.begin(115200);
   
   // Initialize with debug output to Serial
-  display.begin(&Serial);
+  spamngr.begin(&Serial);
   
   // Or initialize without debug output
-  // display.begin();
+  // spamngr.begin();
 }
 ```
 
@@ -155,7 +155,7 @@ Adds a web page to the display manager.
 
 Example:
 ```cpp
-display.addPage("home", R"(
+spamngr.addPage("home", R"(
   <html>
     <head><title>Home Page</title></head>
     <body>
@@ -175,7 +175,7 @@ Gets the value of a placeholder in the HTML content of a web page.
 Example:
 ```cpp
 // Get the current value of the TEMP placeholder
-PlaceholderValue temp = display.getPlaceholder("home", "TEMP");
+PlaceholderValue temp = spamngr.getPlaceholder("home", "TEMP");
 
 // Use the value in different formats
 int tempInt = temp.asInt();
@@ -194,7 +194,7 @@ Activates a web page, making it the current page being displayed.
 Example:
 ```cpp
 // Switch to the settings page
-display.activatePage("settings");
+spamngr.activatePage("settings");
 ```
 
 #### `setPlaceholder(const char* pageName, const char* placeholder, T value)`
@@ -209,14 +209,14 @@ Example:
 ```cpp
 // Set temperature placeholder with a float value
 float temperature = 23.5;
-display.setPlaceholder("home", "TEMP", temperature);
+spamngr.setPlaceholder("home", "TEMP", temperature);
 
 // Set humidity placeholder with an integer value
 int humidity = 45;
-display.setPlaceholder("home", "HUM", humidity);
+spamngr.setPlaceholder("home", "HUM", humidity);
 
 // Set status placeholder with a string value
-display.setPlaceholder("home", "STATUS", "Online");
+spamngr.setPlaceholder("home", "STATUS", "Online");
 ```
 
 #### `addMenu(const char* pageName, const char* menuName)`
@@ -228,10 +228,10 @@ Adds a menu to a specific web page.
 Example:
 ```cpp
 // Add a main menu to the home page
-display.addMenu("home", "mainMenu");
+spamngr.addMenu("home", "mainMenu");
 
 // Add a settings menu to the settings page
-display.addMenu("settings", "settingsMenu");
+spamngr.addMenu("settings", "settingsMenu");
 ```
 
 #### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback)`
@@ -251,7 +251,7 @@ void turnOnLED() {
 }
 
 // Add a menu item that calls the function when clicked
-display.addMenuItem("home", "mainMenu", "Turn ON LED", turnOnLED);
+spamngr.addMenuItem("home", "mainMenu", "Turn ON LED", turnOnLED);
 ```
 
 #### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url)`
@@ -265,10 +265,10 @@ Adds a menu item with a URL to a specific menu on a web page.
 Example:
 ```cpp
 // Add a menu item that navigates to the settings page
-display.addMenuItem("home", "mainMenu", "Settings", "settings");
+spamngr.addMenuItem("home", "mainMenu", "Settings", "settings");
 
 // Add a menu item that links to an external website
-display.addMenuItem("home", "mainMenu", "Documentation", "https://example.com/docs");
+spamngr.addMenuItem("home", "mainMenu", "Documentation", "https://example.com/docs");
 ```
 
 #### `addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(uint8_t)> callback, uint8_t param)`
@@ -296,8 +296,8 @@ void handleMenuAction(uint8_t action) {
 }
 
 // In setup or where menus are configured:
-display.addMenuItem("home", "mainMenu", "Turn ON LED", handleMenuAction, 1);
-display.addMenuItem("home", "mainMenu", "Turn OFF LED", handleMenuAction, 2);
+spamngr.addMenuItem("home", "mainMenu", "Turn ON LED", handleMenuAction, 1);
+spamngr.addMenuItem("home", "mainMenu", "Turn OFF LED", handleMenuAction, 2);
 ```
 
 #### `addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback = nullptr)`
@@ -306,7 +306,7 @@ Adds a menu item that opens a popup menu when selected.
 - `pageName`: The URL path of the page containing the menu.
 - `menuName`: The name of the menu.
 - `menuItem`: The name of the menu item that will open the popup.
-- `popupMenu`: The name of the popup menu to display.
+- `popupMenu`: The name of the popup menu to spamngr.
 - `callback`: Optional callback function that receives a map of input values from the popup.
 
 Example:
@@ -321,11 +321,11 @@ void handleWifiSettings(const std::map<std::string, std::string>& values) {
   WiFi.begin(ssid.c_str(), password.c_str());
   
   // Show a message
-  display.setMessage("Connecting to WiFi...", 3000);
+  spamngr.setMessage("Connecting to WiFi...", 3000);
 }
 
 // Add a menu item that opens a popup for WiFi settings
-display.addMenuItemPopup("settings", "settingsMenu", "WiFi Settings", "wifiPopup", handleWifiSettings);
+spamngr.addMenuItemPopup("settings", "settingsMenu", "WiFi Settings", "wifiPopup", handleWifiSettings);
 
 // The popup HTML would be defined in your page with input fields
 // <div id="wifiPopup" class="popup">
@@ -345,11 +345,11 @@ Disables a specific menu item on a web page.
 Example:
 ```cpp
 // Disable the "Reset Device" menu item
-display.disableMenuItem("settings", "settingsMenu", "Reset Device");
+spamngr.disableMenuItem("settings", "settingsMenu", "Reset Device");
 
 // You might disable items based on conditions
 if (!isWifiConnected) {
-  display.disableMenuItem("home", "mainMenu", "Cloud Upload");
+  spamngr.disableMenuItem("home", "mainMenu", "Cloud Upload");
 }
 ```
 
@@ -363,11 +363,11 @@ Enables a specific menu item on a web page.
 Example:
 ```cpp
 // Enable the "Reset Device" menu item
-display.enableMenuItem("settings", "settingsMenu", "Reset Device");
+spamngr.enableMenuItem("settings", "settingsMenu", "Reset Device");
 
 // You might enable items based on conditions
 if (isWifiConnected) {
-  display.enableMenuItem("home", "mainMenu", "Cloud Upload");
+  spamngr.enableMenuItem("home", "mainMenu", "Cloud Upload");
 }
 ```
 
@@ -380,45 +380,45 @@ Sets the title of a specific web page.
 Example:
 ```cpp
 // Set the title of the home page
-display.setPageTitle("home", "Smart Home Dashboard");
+spamngr.setPageTitle("home", "Smart Home Dashboard");
 
 // Update title based on sensor status
 if (alarmTriggered) {
-  display.setPageTitle("home", "ALERT: Motion Detected!");
+  spamngr.setPageTitle("home", "ALERT: Motion Detected!");
 }
 ```
 
 #### `setMessage(const char* message, int duration)`
 
 Sets a message to be displayed for a specified duration.
-- `message`: The message to display.
+- `message`: The message to spamngr.
 - `duration`: The duration in milliseconds to display the message.
 
 Example:
 ```cpp
 // Show a temporary message
-display.setMessage("Settings saved successfully!", 3000);
+spamngr.setMessage("Settings saved successfully!", 3000);
 
 // Show a message when a sensor is triggered
 if (motionDetected) {
-  display.setMessage("Motion detected in living room", 5000);
+  spamngr.setMessage("Motion detected in living room", 5000);
 }
 ```
 
 #### `setErrorMessage(const char* message, int duration)`
 
 Sets an error message to be displayed for a specified duration.
-- `message`: The error message to display.
+- `message`: The error message to spamngr.
 - `duration`: The duration in milliseconds to display the error message.
 
 Example:
 ```cpp
 // Show an error message
-display.setErrorMessage("Failed to connect to WiFi!", 5000);
+spamngr.setErrorMessage("Failed to connect to WiFi!", 5000);
 
 // Show an error when a sensor reading fails
 if (isnan(temperature)) {
-  display.setErrorMessage("Temperature sensor error", 3000);
+  spamngr.setErrorMessage("Temperature sensor error", 3000);
 }
 ```
 
@@ -432,11 +432,11 @@ Example:
 ```cpp
 // Enable a button when WiFi is connected
 if (WiFi.status() == WL_CONNECTED) {
-  display.enableID("home", "connectButton");
+  spamngr.enableID("home", "connectButton");
 }
 
 // Enable a form when the device is ready
-display.enableID("settings", "wifiForm");
+spamngr.enableID("settings", "wifiForm");
 ```
 
 #### `disableID(const char* pageName, const char* id)`
@@ -449,11 +449,11 @@ Example:
 ```cpp
 // Disable a button when WiFi is disconnected
 if (WiFi.status() != WL_CONNECTED) {
-  display.disableID("home", "uploadButton");
+  spamngr.disableID("home", "uploadButton");
 }
 
 // Disable a form during processing
-display.disableID("settings", "wifiForm");
+spamngr.disableID("settings", "wifiForm");
 ```
 
 #### `includeJsScript(const char* scriptFile)`
@@ -468,19 +468,19 @@ Example:
 ```cpp
 void onPageLoaded() {
   // Include JavaScript files
-  display.includeJsScript("/scripts/charts.js");
-  display.includeJsScript("/scripts/sensors.js");
+  spamngr.includeJsScript("/scripts/charts.js");
+  spamngr.includeJsScript("/scripts/sensors.js");
   
   // Initialize the page
-  display.callJsFunction("initDashboard");
+  spamngr.callJsFunction("initDashboard");
 }
 
 void setup() {
   // Set up the display manager
-  display.begin();
+  spamngr.begin();
   
   // Register the page loaded callback
-  display.pageIsLoaded(onPageLoaded);
+  spamngr.pageIsLoaded(onPageLoaded);
   
   // Add pages and other setup
   // ...
@@ -505,13 +505,13 @@ Example:
 // }
 
 // Include the script file first
-display.includeJsScript("/dashboard.js");
+spamngr.includeJsScript("/dashboard.js");
 
 // Then call the JavaScript function with parameters
 float sensorValue = readSensor();
 char jsCommand[64];
 sprintf(jsCommand, "updateChart(%f)", sensorValue);
-display.callJsFunction(jsCommand);
+spamngr.callJsFunction(jsCommand);
 ```
 
 #### `pageIsLoaded(std::function<void()> callback)`
@@ -526,26 +526,26 @@ Example:
 ```cpp
 void pageLoadedCallback() {
   // This function will be called when the page is loaded
-  display.setMessage("Page loaded successfully!", 3000);
+  spamngr.setMessage("Page loaded successfully!", 3000);
   
   // Include JavaScript files
-  display.includeJsScript("/charts.js");
-  display.includeJsScript("/sensors.js");
+  spamngr.includeJsScript("/charts.js");
+  spamngr.includeJsScript("/sensors.js");
   
   // Initialize the page
-  display.callJsFunction("initializeDashboard");
+  spamngr.callJsFunction("initializeDashboard");
   
   // Update placeholders with current values
-  display.setPlaceholder("/dashboard", "TEMP", currentTemperature);
-  display.setPlaceholder("/dashboard", "HUM", currentHumidity);
+  spamngr.setPlaceholder("/dashboard", "TEMP", currentTemperature);
+  spamngr.setPlaceholder("/dashboard", "HUM", currentHumidity);
 }
 
 void setup() {
   // Set up the display manager
-  display.begin();
+  spamngr.begin();
   
   // Register the page loaded callback
-  display.pageIsLoaded(pageLoadedCallback);
+  spamngr.pageIsLoaded(pageLoadedCallback);
   
   // Add pages and other setup
   // ...
@@ -560,7 +560,7 @@ Example:
 ```cpp
 void loop() {
   // Handle client requests
-  display.handleClient();
+  spamngr.handleClient();
   
   // Other loop code
   // ...
