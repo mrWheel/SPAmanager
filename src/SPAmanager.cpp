@@ -142,7 +142,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
 
         payload[length] = 0;
         std::string message = std::string((char*)payload);
-        const size_t capacity = JSON_OBJECT_SIZE(3) + 256;
+        const size_t capacity = JSON_OBJECT_SIZE(10) + 256;
         DynamicJsonDocument doc(capacity);
         if (doc.capacity() == 0)
         {
