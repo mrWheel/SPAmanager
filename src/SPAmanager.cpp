@@ -681,9 +681,9 @@ void SPAmanager::activatePage(const char* pageName)
     updateClients();
 }
 
-std::string SPAmanager::getActivePage() const
+std::string SPAmanager::getActivePageName() const
 {
-  return activePageName;
+  return activePageName.c_str();
 
 }
 

@@ -31,7 +31,7 @@ class SPAmanager
     //-- Page-related methods
     void addPage(const char* pageName, const char* html);
     void activatePage(const char* pageName);
-    std::string getActivePage() const;
+    std::string getActivePageName() const;
     void setPageTitle(const char* pageName, const char* title);
     
     //-- Menu-related methods
