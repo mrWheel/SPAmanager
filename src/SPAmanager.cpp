@@ -343,8 +343,17 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
           }
         }
     }
-
-  } // onWebSocketEvent()
+    // Call any registered event listeners for this event type
+    auto it = wsEventListeners.find(type);
+    if (it != wsEventListeners.end()) 
+    {
+      for (const auto& listener : it->second) 
+      {
+        listener(num, payload, length);
+      }
+    }
+    
+  } // handleWebSocketEvent()
 
 void SPAmanager::broadcastState() 
 {
@@ -1143,6 +1152,14 @@ void SPAmanager::handleJsFunctionResult(const char* functionName, bool success)
   {
     debug(("JavaScript function [" + std::string(functionName) + "] not found or failed to execute").c_str());
   }
+}
+
+void SPAmanager::addWebSocketEvent(WStype_t eventType, std::function<void(uint8_t num, uint8_t* payload, size_t length)> callback)
+{
+  debug(("addWebSocketEvent() called for event type: " + std::to_string(eventType)).c_str());
+  
+  // Add the callback to the event listeners map
+  wsEventListeners[eventType].push_back(callback);
 }
 
 void SPAmanager::setMessage(const char* message, int duration) 

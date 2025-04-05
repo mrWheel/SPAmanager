@@ -47,6 +47,7 @@ class SPAmanager
     void setMessage(const char* message, int duration);
     void setErrorMessage(const char* message, int duration);
     void callJsFunction(const char* functionName);
+    void addWebSocketEvent(WStype_t eventType, std::function<void(uint8_t num, uint8_t* payload, size_t length)> callback);
     template <typename T>
     void setPlaceholder(const char* pageName, const char* placeholder, T value);
     class PlaceholderValue 
@@ -164,6 +165,8 @@ class SPAmanager
     std::vector<Menu> menus;
     std::vector<Page> pages;
     Page* activePage;
+    //-- store eventListeners for WebSocket events
+    std::map<WStype_t, std::vector<std::function<void(uint8_t num, uint8_t* payload, size_t length)>>> wsEventListeners;
     //-- Track which scripts have been served to avoid duplicates
     std::set<std::string> servedFiles;  
     
