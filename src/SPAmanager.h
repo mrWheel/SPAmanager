@@ -31,6 +31,7 @@ class SPAmanager
     //-- Page-related methods
     void addPage(const char* pageName, const char* html);
     void activatePage(const char* pageName);
+    std::string getActivePage() const;
     void setPageTitle(const char* pageName, const char* title);
     
     //-- Menu-related methods
@@ -80,6 +81,7 @@ class SPAmanager
     bool hasConnectedClient;  //-- Track if we have a connected client
     std::string rootSystemPath;
     std::string firstPageName;  //-- Store the name of the first page added
+    std::string activePageName; //-- Store the name of the active page
     std::function<void()> pageLoadedCallback;
     
     char currentMessage[MAX_MESSAGE_LEN];

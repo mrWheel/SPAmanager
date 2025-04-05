@@ -681,6 +681,12 @@ void SPAmanager::activatePage(const char* pageName)
     updateClients();
 }
 
+std::string SPAmanager::getActivePage() const
+{
+  return activePageName;
+
+}
+
 void SPAmanager::addMenu(const char* pageName, const char* menuName) 
 {
     debug(("addMenu() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName)).c_str());
