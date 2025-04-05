@@ -673,6 +673,7 @@ void SPAmanager::activatePage(const char* pageName)
         if (shouldBeVisible) 
         {
             activePage = &page;
+            activePageName = pageName; //store activePageName
             setHeaderTitle(page.title);
             Serial.printf("Activating page: %s with [%s]\n", page.name, page.title);
         }
@@ -683,7 +684,7 @@ void SPAmanager::activatePage(const char* pageName)
 
 std::string SPAmanager::getActivePageName() const
 {
-  return activePageName.c_str();
+  return activePage ? activePage->name : "";
 
 }
 
