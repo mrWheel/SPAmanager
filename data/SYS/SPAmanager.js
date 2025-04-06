@@ -2,7 +2,7 @@
 let ws;
 let pages = {};
 
-console.log('====> displayManager.js loaded');
+console.log('====> SPAmanager.js loaded');
 
 function connect() {
     ws = new WebSocket('ws://' + window.location.hostname + ':81');
@@ -17,7 +17,8 @@ function connect() {
     ws.addEventListener('message', (event) => {
       try {
             const data = JSON.parse(event.data);
-
+            console.log("Message received:", data);
+    
             if (data.event === 'includeJsFile') {
               console.log(`addEventListener(): includeJsFile: [${data.data}]`);
               handleEvent('includeJsFile', data.data);
@@ -43,7 +44,7 @@ function connect() {
               window.location.href = data.url;
               return;
             }
-
+    
             // Handle Partial Update
             if (data.type === 'update') {
               const target = document.getElementById(data.target);
@@ -55,59 +56,71 @@ function connect() {
                 } else {
                     target.textContent = data.content;
                 }
-            }
+              }
               return;
             }
-
-            // Handle Full State Update
-            const bodyContent = document.getElementById('bodyContent');
-            bodyContent.innerHTML = data.body || '';
-            bodyContent.style.display = data.isVisible ? 'block' : 'none';
-
-            // Efficient Input Listener Addition
-            document.querySelectorAll('input[id]').forEach(input => {
-                if (!input.hasInputListener) {
-                    input.addEventListener('input', () => {
-                        ws.send(JSON.stringify({
-                            type: 'inputChange',
-                            placeholder: input.id,
-                            value: input.value
-                        }));
-                    });
-                    input.hasInputListener = true;
-                }
-            });
-
-            // Dynamic Menu Rendering
-            const menuContainer = document.querySelector('.dM_left');
-            menuContainer.innerHTML = '';
-            if (data.menus && data.menus.length > 0) {
-                data.menus.forEach(menu => {
-                    const menuDiv = document.createElement('div');
-                    menuDiv.className = 'dM_dropdown';
-                    const menuSpan = document.createElement('span');
-                    menuSpan.textContent = menu.name;
-                    menuDiv.appendChild(menuSpan);
-
-                    const menuList = document.createElement('ul');
-                    menuList.className = 'dM_dropdown-menu';
-                    menu.items.forEach(item => {
-                        const li = document.createElement('li');
-                        if (item.disabled) li.className = 'disabled';
-                        const link = document.createElement(item.url ? 'a' : 'span');
-                        link.textContent = item.name;
-                        if (item.url) link.href = item.url;
-                        if (!item.disabled && !item.url) {
-                            link.onclick = () => handleMenuClick(menu.name, item.name);
-                        }
-                        li.appendChild(link);
-                        menuList.appendChild(li);
-                    });
-                    menuDiv.appendChild(menuList);
-                    menuContainer.appendChild(menuDiv);
-                });
+            
+            // Handle custom message types - don't treat them as full state updates
+            if (data.type === 'custom') {
+              console.log("Processing custom message:", data);
+              return;
             }
-
+            
+            // Only process as a full state update if it has the expected properties
+            if (data.hasOwnProperty('body') || data.hasOwnProperty('menus')) {
+              console.log("Processing full state update");
+              
+              // Handle Full State Update
+              const bodyContent = document.getElementById('bodyContent');
+              bodyContent.innerHTML = data.body || '';
+              bodyContent.style.display = data.isVisible ? 'block' : 'none';
+    
+              // Efficient Input Listener Addition
+              document.querySelectorAll('input[id]').forEach(input => {
+                  if (!input.hasInputListener) {
+                      input.addEventListener('input', () => {
+                          ws.send(JSON.stringify({
+                              type: 'inputChange',
+                              placeholder: input.id,
+                              value: input.value
+                          }));
+                      });
+                      input.hasInputListener = true;
+                  }
+              });
+    
+              // Dynamic Menu Rendering
+              const menuContainer = document.querySelector('.dM_left');
+              menuContainer.innerHTML = '';
+              if (data.menus && data.menus.length > 0) {
+                  data.menus.forEach(menu => {
+                      const menuDiv = document.createElement('div');
+                      menuDiv.className = 'dM_dropdown';
+                      const menuSpan = document.createElement('span');
+                      menuSpan.textContent = menu.name;
+                      menuDiv.appendChild(menuSpan);
+    
+                      const menuList = document.createElement('ul');
+                      menuList.className = 'dM_dropdown-menu';
+                      menu.items.forEach(item => {
+                          const li = document.createElement('li');
+                          if (item.disabled) li.className = 'disabled';
+                          const link = document.createElement(item.url ? 'a' : 'span');
+                          link.textContent = item.name;
+                          if (item.url) link.href = item.url;
+                          if (!item.disabled && !item.url) {
+                              link.onclick = () => handleMenuClick(menu.name, item.name);
+                          }
+                          li.appendChild(link);
+                          menuList.appendChild(li);
+                      });
+                      menuDiv.appendChild(menuList);
+                      menuContainer.appendChild(menuDiv);
+                  });
+              }
+            } else {
+              console.log("Received message that is not a full state update:", data);
+            }
             // Message Handling and Timed Removal
             const msg = document.getElementById('message');
             if (window.messageTimer) {
