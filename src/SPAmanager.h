@@ -47,7 +47,7 @@ class SPAmanager
     void setMessage(const char* message, int duration);
     void setErrorMessage(const char* message, int duration);
     void callJsFunction(const char* functionName);
-    void setHandleLocalEvents(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback);
+    void setLocalEventHandler(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback);
 
     template <typename T>
     void setPlaceholder(const char* pageName, const char* placeholder, T value);

@@ -82,9 +82,9 @@ void SPAmanager::setupWebServer()
     server.begin();
 }
 
-void SPAmanager::setHandleLocalEvents(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback)
+void SPAmanager::setLocalEventHandler(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback)
 {
-  debug("setHandleLocalEvents() called");
+  debug("setLocalEventHandler() called");
   localEventsCallback = callback;
 }
 
