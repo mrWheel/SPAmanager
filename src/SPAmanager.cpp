@@ -301,7 +301,13 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
         }
         else if (doc["type"] == "process") {
           const char* processType = doc["processType"];
-          const char* popupId = doc["popupId"];
+          
+          // Check if popupId exists before accessing it
+          const char* popupId = "";
+          if (doc.containsKey("popupId")) {
+            popupId = doc["popupId"];
+          }
+          
           debug(("WebSocket: process message received with type: " + std::string(processType) + " for popup: " + std::string(popupId)).c_str());
           
           // Extract input values from the JSON message
@@ -314,8 +320,18 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
               JsonObject inputObj = doc["inputValues"];
               debug(("inputValues object has " + std::to_string(inputObj.size()) + " entries").c_str());
               for (JsonPair kv : inputObj) {
-                inputValues[kv.key().c_str()] = kv.value().as<std::string>();
-                debug(("Input value: " + std::string(kv.key().c_str()) + " = " + kv.value().as<std::string>()).c_str());
+                // Safely handle the value, even if it's null or empty
+                if (kv.value().isNull()) {
+                  // Handle null value - store as empty string
+                  inputValues[kv.key().c_str()] = "";
+                  debug(("Input value: " + std::string(kv.key().c_str()) + " = (null)").c_str());
+                } else {
+                  // Use String for Arduino compatibility, which handles empty strings properly
+                  String arduinoValue = kv.value().as<String>();
+                  std::string stdValue = arduinoValue.c_str(); // Convert to std::string
+                  inputValues[kv.key().c_str()] = stdValue;
+                  debug(("Input value: " + std::string(kv.key().c_str()) + " = " + stdValue).c_str());
+                }
               }
             } else {
               debug("inputValues is NOT a JSON object");
@@ -328,32 +344,60 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             debug(("JSON message: " + jsonDump).c_str());
           }
           
-          // Find the menu item that created this popup
-          for (const auto& menu : menus) {
-            for (const auto& item : menu.items) {
-              // Check if this item's callback is a popup callback
-              std::string itemPopupId = std::string("popup_") + menu.name + "_" + item.name;
-              // Replace spaces with underscores
-              for (size_t i = 0; i < itemPopupId.length(); i++) {
-                if (itemPopupId[i] == ' ') {
-                  itemPopupId[i] = '_';
+          // Check if this is a popup-related process type
+          bool isPopupHandled = false;
+          if (strlen(popupId) > 0) {
+            // This might be a popup-related process type, check if the popupId matches any of our registered popups
+            for (const auto& menu : menus) {
+              for (const auto& item : menu.items) {
+                // Check if this item's callback is a popup callback
+                std::string itemPopupId = std::string("popup_") + menu.name + "_" + item.name;
+                // Replace spaces with underscores
+                for (size_t i = 0; i < itemPopupId.length(); i++) {
+                  if (itemPopupId[i] == ' ') {
+                    itemPopupId[i] = '_';
+                  }
+                }
+                
+                if (itemPopupId == popupId) {
+                  // This is the menu item that created the popup
+                  // Call its popup callback if it exists
+                  if (item.popupCallback) {
+                    debug(("Calling popup callback for: " + itemPopupId).c_str());
+                    item.popupCallback(inputValues);
+                    isPopupHandled = true;
+                  } else {
+                    debug(("No popup callback found for: " + itemPopupId).c_str());
+                  }
+                  break;
                 }
               }
-              
-              if (itemPopupId == popupId) {
-                // This is the menu item that created the popup
-                // Call its popup callback if it exists
-                if (item.popupCallback) {
-                  debug(("Calling popup callback for: " + itemPopupId).c_str());
-                  item.popupCallback(inputValues);
-                } else {
-                  debug(("No popup callback found for: " + itemPopupId).c_str());
-                }
-                break;
-              }
+              if (isPopupHandled) break;
             }
           }
-          eventHandled = true;
+          
+          // If this is a popup-related process type and we handled it, mark the event as handled
+          if (isPopupHandled) {
+            eventHandled = true;
+          } else {
+            // This is not a popup-related process type or we couldn't handle it
+            // Pass it to the local event handler
+            debug("Process type not handled by SPAmanager, passing to local event handler");
+            if (localEventsCallback) {
+              localEventsCallback(num, type, payload, length);
+              eventHandled = true;
+            } else {
+              debug("No local event handler registered");
+            }
+          }
+        }
+        else {
+          // Unknown message type, pass it to the local event handler
+          debug(("Unknown message type: " + std::string(doc["type"] | "unknown")).c_str());
+          if (localEventsCallback) {
+            localEventsCallback(num, type, payload, length);
+            eventHandled = true;
+          }
         }
     }
     
@@ -362,7 +406,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
       localEventsCallback(num, type, payload, length);
     }
 
-  } // onWebSocketEvent()
+  } // handleWebSocketEvent()
 
 void SPAmanager::broadcastState() 
 {
