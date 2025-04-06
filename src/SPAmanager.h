@@ -47,6 +47,8 @@ class SPAmanager
     void setMessage(const char* message, int duration);
     void setErrorMessage(const char* message, int duration);
     void callJsFunction(const char* functionName);
+    void setHandleLocalEvents(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback);
+
     template <typename T>
     void setPlaceholder(const char* pageName, const char* placeholder, T value);
     class PlaceholderValue 
@@ -83,7 +85,8 @@ class SPAmanager
     std::string firstPageName;  //-- Store the name of the first page added
     std::string activePageName; //-- Store the name of the active page
     std::function<void()> pageLoadedCallback;
-    
+    std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> localEventsCallback;
+
     char currentMessage[MAX_MESSAGE_LEN];
     bool isError;
     unsigned long messageEndTime;

@@ -82,10 +82,16 @@ void SPAmanager::setupWebServer()
     server.begin();
 }
 
-
+void SPAmanager::setHandleLocalEvents(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback)
+{
+  debug("setHandleLocalEvents() called");
+  localEventsCallback = callback;
+}
 
 void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) 
 {
+    bool eventHandled = false;
+    
     if (type == WStype_CONNECTED) 
     {
         debug("WebSocket client connected");
@@ -122,6 +128,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
         }
         
         broadcastState();
+        eventHandled = true;
     }
     else if (type == WStype_DISCONNECTED)
     {
@@ -131,6 +138,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             hasConnectedClient = false;
             debug("Current client disconnected");
         }
+        eventHandled = true;
     }
     else if (type == WStype_TEXT)
     {
@@ -179,6 +187,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
                     }
                 }
             }
+            eventHandled = true;
         }
         else if (doc["type"] == "inputChange") {
             const char* placeholder = doc["placeholder"];
@@ -226,6 +235,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
                     }
                 }
             }
+            eventHandled = true;
         }
         else if (doc["type"] == "pageLoaded") {
           debug("WebSocket: pageLoaded message received");
@@ -279,6 +289,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
           if (pageLoadedCallback) {
             pageLoadedCallback();
           }
+          eventHandled = true;
         }
         else if (doc["type"] == "jsFunctionResult") {
           const char* functionName = doc["functionName"];
@@ -286,6 +297,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
           
           // Call the existing handleJsFunctionResult method
           handleJsFunctionResult(functionName, success);
+          eventHandled = true;
         }
         else if (doc["type"] == "process") {
           const char* processType = doc["processType"];
@@ -341,7 +353,13 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
               }
             }
           }
+          eventHandled = true;
         }
+    }
+    
+    // If no event was handled and we have a local events callback, call it
+    if (!eventHandled && localEventsCallback) {
+      localEventsCallback(num, type, payload, length);
     }
 
   } // onWebSocketEvent()
