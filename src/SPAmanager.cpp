@@ -150,7 +150,8 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
 
         payload[length] = 0;
         std::string message = std::string((char*)payload);
-        const size_t capacity = JSON_OBJECT_SIZE(10) + 256;
+        //const size_t capacity = JSON_OBJECT_SIZE(10) + 256;
+        const size_t capacity = 3000; // Adjusted for larger messages
         DynamicJsonDocument doc(capacity);
         if (doc.capacity() == 0)
         {
@@ -162,7 +163,9 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
         
         if (error)
         {
+
             debug(("JSON deserialization failed: " + std::string(error.c_str())).c_str());
+            debug(("Received message: " + message + " [" + std::to_string(message.length()) + " bytes]").c_str());
             return;
         }
         
