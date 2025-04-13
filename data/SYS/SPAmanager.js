@@ -63,7 +63,7 @@ function connect() {
             // Handle custom message types - don't treat them as full state updates
             if (data.type === 'custom') {
               console.log("Processing custom message:", data);
-              return;
+              //-no-return;
             }
             
             // Only process as a full state update if it has the expected properties

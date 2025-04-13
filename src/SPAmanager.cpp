@@ -151,7 +151,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
         payload[length] = 0;
         std::string message = std::string((char*)payload);
         //const size_t capacity = JSON_OBJECT_SIZE(10) + 256;
-        const size_t capacity = 3000; // Adjusted for larger messages
+        const size_t capacity = 5000; // Adjusted for larger messages
         DynamicJsonDocument doc(capacity);
         if (doc.capacity() == 0)
         {
@@ -168,7 +168,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             debug(("Received message: " + message + " [" + std::to_string(message.length()) + " bytes]").c_str());
             return;
         }
-        
+
         if (doc["type"] == "menuClick") {
             const char* menuName = doc["menu"];
             const char* itemName = doc["item"];
@@ -192,11 +192,13 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             }
             eventHandled = true;
         }
-        else if (doc["type"] == "inputChange") {
+        else if (doc["type"] == "inputChange") 
+        {
             const char* placeholder = doc["placeholder"];
             const char* value = doc["value"];
             
-            if (activePage) {
+            if (activePage) 
+            {
                 for (auto& page : pages) {
                     if (strcmp(page.name, activePage->name) == 0) {
                         std::string content = page.getContent();
@@ -240,22 +242,26 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             }
             eventHandled = true;
         }
-        else if (doc["type"] == "pageLoaded") {
+        else if (doc["type"] == "pageLoaded") 
+        {
           debug("WebSocket: pageLoaded message received");
-          if (!firstPageName.empty()) {
+          if (!firstPageName.empty()) 
+          {
             debug(("Activating first page: [" + firstPageName + "]").c_str());
             activatePage(firstPageName.c_str());
           }
           
           // Include all scripts in servedFiles
           debug("Including all files in servedFiles");
-          for (const auto& scriptPath : servedFiles) {
+          for (const auto& scriptPath : servedFiles) 
+          {
             debug(("pageLoaded:: Including file: [" + scriptPath + "]").c_str());
             
             // Extract the script file name from the full path
             std::string sanitizedJsFile;
             size_t pos = scriptPath.find(rootSystemPath);
-            if (pos != std::string::npos) {
+            if (pos != std::string::npos) 
+            {
               // If rootSystemPath is found, remove it from the path
               sanitizedJsFile = scriptPath.substr(pos + rootSystemPath.length());
             } else {
@@ -264,7 +270,8 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             }
             
             // Ensure the file path starts with a '/'
-            if (!sanitizedJsFile.empty() && sanitizedJsFile[0] != '/') {
+            if (!sanitizedJsFile.empty() && sanitizedJsFile[0] != '/') 
+            {
               sanitizedJsFile = "/" + sanitizedJsFile;
             }
           
@@ -274,7 +281,8 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             DynamicJsonDocument scriptDoc(capacity);
           
             // Determine if this is a CSS file or JS file based on extension
-            if (sanitizedJsFile.find(".css") != std::string::npos) {
+            if (sanitizedJsFile.find(".css") != std::string::npos) 
+            {
               scriptDoc["event"] = "includeCssFile";
             } else {
               scriptDoc["event"] = "includeJsFile";
@@ -284,17 +292,20 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             std::string output;
             serializeJson(scriptDoc, output);
           
-            if (!output.empty()) {
+            if (!output.empty()) 
+            {
               debug(("Broadcasting include message: [" + output + "]").c_str());
               ws.broadcastTXT(output.c_str(), output.length());
             }
           }
-          if (pageLoadedCallback) {
+          if (pageLoadedCallback) 
+          {
             pageLoadedCallback();
           }
           eventHandled = true;
         }
-        else if (doc["type"] == "jsFunctionResult") {
+        else if (doc["type"] == "jsFunctionResult") 
+        {
           const char* functionName = doc["functionName"];
           bool success = doc["success"];
           
@@ -302,7 +313,8 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
           handleJsFunctionResult(functionName, success);
           eventHandled = true;
         }
-        else if (doc["type"] == "process") {
+        else if (doc["type"] == "process") 
+        {
           const char* processType = doc["processType"];
           
           // Check if popupId exists before accessing it
@@ -394,10 +406,27 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             }
           }
         }
-        else {
+        else if (doc["type"] == "custom") 
+        {
+          // Handle custom message type
+          debug("WebSocket: custom message received");
+          
+          // Check if we have a local events callback registered
+          if (localEventsCallback) {
+              debug("Forwarding custom message to local event handler");
+              // Forward the event to the local event handler
+              localEventsCallback(num, type, payload, length);
+              eventHandled = true;
+          } else {
+              debug("No local event handler registered for custom message");
+          }
+        }
+        else 
+        {
           // Unknown message type, pass it to the local event handler
           debug(("Unknown message type: " + std::string(doc["type"] | "unknown")).c_str());
-          if (localEventsCallback) {
+          if (localEventsCallback) 
+          {
             localEventsCallback(num, type, payload, length);
             eventHandled = true;
           }
@@ -409,7 +438,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
       localEventsCallback(num, type, payload, length);
     }
 
-  } // handleWebSocketEvent()
+} // handleWebSocketEvent()
 
 void SPAmanager::broadcastState() 
 {
