@@ -413,9 +413,9 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
           
           // Check if we have a local events callback registered
           if (localEventsCallback) {
-              debug("Forwarding custom message to local event handler");
+              debug(("Forwarding custom message to local event handler (WStype [" + std::to_string(WStype_TEXT) + "])").c_str());
               // Forward the event to the local event handler
-              localEventsCallback(num, type, payload, length);
+              localEventsCallback(num, WStype_TEXT, payload, length);
               eventHandled = true;
           } else {
               debug("No local event handler registered for custom message");
