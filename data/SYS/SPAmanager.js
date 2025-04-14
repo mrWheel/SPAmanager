@@ -26,7 +26,7 @@ function connect() {
             }
             if (data.event === 'callJsFunction') {
               console.log('addEventListener(): callJsFunction:', data.data);
-              handleEvent('callJsFunction', data.data);
+              handleEvent('callJsFunction', data);
               return;
             }
             if (data.event === 'includeCssFile') {
@@ -63,7 +63,7 @@ function connect() {
             // Handle custom message types - don't treat them as full state updates
             if (data.type === 'custom') {
               console.log("Processing custom message:", data);
-              //-no-return;
+              return;
             }
             
             // Only process as a full state update if it has the expected properties
@@ -147,114 +147,127 @@ function connect() {
 
 let scriptLoadPromises = {};  // Track script load status
 
-function handleEvent(eventType, data) {
-    console.log('handleEvent() called with: '+ eventType + ', function: '+ data);
-    switch (eventType) {
-      case 'callJsFunction':
-            console.log('Handling callJsFunction(' + data + ')');
-            // Log the data and check the type
-            console.log('Data received:', data);
-            if (typeof window[data] === 'undefined') {
-              console.error('====>>> '+data+' is NOT a function')
-            }
-            else {
-              console.log('function ['+data+'] exists!')
-            }
-            // Check if we're waiting for any scripts to load
-            const pendingScripts = Object.values(scriptLoadPromises);
-            if (pendingScripts.length > 0) {
-                // Wait for all scripts to load before calling the function
-                Promise.all(pendingScripts).then(() => {
-                    if (typeof window[data] === 'function') {
-                        console.log('handleEvent(): Calling function ==>(' + data + ')');
-                        window[data]();
-                        // Send success feedback
-                        ws.send(JSON.stringify({
-                            type: 'jsFunctionResult',
-                            functionName: data,
-                            success: true
-                        }));
-                    } else {
-                        console.error('=======>>> [' + data + '] does not exist or is not a function');
-                        // Send failure feedback
-                        ws.send(JSON.stringify({
-                            type: 'jsFunctionResult',
-                            functionName: data,
-                            success: false
-                        }));
-                    }
-                });
-            } else {
-                // No pending scripts, call function immediately
-                if (typeof window[data] === 'function') {
-                    console.log('handleEvent(): Calling function:', data);
-                    window[data]();
-                    // Send success feedback
-                    ws.send(JSON.stringify({
-                        type: 'jsFunctionResult',
-                        functionName: data,
-                        success: true
-                    }));
-                } else {
-                    console.error('========>>> [' + data + '] does not exist or is not a function');
-                    // Send failure feedback
-                    ws.send(JSON.stringify({
-                        type: 'jsFunctionResult',
-                        functionName: data,
-                        success: false
-                    }));
-                }
-            }
-            break;
-        case 'includeJsFile':
-            console.log('Handling includeJsFile:', data);
-            // Ensure the script path starts with '/' and only includes the file name
-            let jsFileName = data.split('/').pop();  // Extract the last part of the path
-            if (jsFileName) {
-                data = '/' + jsFileName;  // Prepend '/' to the file name
-            }
-            // Create a promise for this script load
-            scriptLoadPromises[data] = new Promise((resolve) => {
-                const script = document.createElement('script');
-                script.src = data;
-                script.onload = () => {
-                    console.log(`Script [${data}] loaded`);
-                    delete scriptLoadPromises[data];  // Clean up
-                    resolve();
-                };
-                document.body.appendChild(script);
-            });
-            break;
-            case 'includeCssFile':
-              console.log('Handling includeCssFile:', data);
-              // Ensure the script path starts with '/' and only includes the file name
-              let cssFileName = data.split('/').pop();  // Extract the last part of the path
-              if (cssFileName) {
-                  data = '/' + cssFileName;  // Prepend '/' to the file name
-              }
-              // Check if the CSS is already included to avoid duplicates
-              if (!document.querySelector(`link[href="${data}"]`)) {
-                  const link = document.createElement('link');
-                  link.rel = 'stylesheet';
-                  link.href = data;
-                  link.onload = () => {
-                      console.log(`CSS [${data}] loaded`);
-                  };
-                  link.onerror = () => {
-                      console.error(`Failed to load CSS [${data}]`);
-                  };
-                  document.head.appendChild(link);
+function handleEvent(eventType, data) 
+{
+  console.log('handleEvent() called with: '+ eventType + ', function: '+ data);
+  switch (eventType) {
+    case 'callJsFunction':
+          // Extract function name and parameters from the data object
+          const functionName = data.data;
+          const functionParams = data.params;
+          
+          console.log('Handling callJsFunction(' + functionName + ')');
+          // Log the data and check the type
+          console.log('Data received:', functionName);
+          console.log('Parameters received:', functionParams);
+          
+          if (typeof window[functionName] === 'undefined') {
+            console.error('====>>> '+functionName+' is NOT a function')
+          }
+          else {
+            console.log('function ['+functionName+'] exists!')
+          }
+          
+          // Check if we're waiting for any scripts to load
+          const pendingScripts = Object.values(scriptLoadPromises);
+          if (pendingScripts.length > 0) {
+              // Wait for all scripts to load before calling the function
+              Promise.all(pendingScripts).then(() => {
+                  if (typeof window[functionName] === 'function') {
+                      console.log('handleEvent(): Calling function:', functionName);
+                      // Call the function with the parameter if it exists
+                      if (functionParams !== undefined) {
+                          window[functionName](functionParams);
+                      } else {
+                          window[functionName]();
+                      }
+                      // Send success feedback
+                      ws.send(JSON.stringify({
+                          type: 'jsFunctionResult',
+                          functionName: functionName,
+                          success: true
+                      }));
+                  } else {
+                      // Error handling...
+                  }
+              });
+          } else {
+              // No pending scripts, call function immediately
+              if (typeof window[functionName] === 'function') {
+                  console.log('handleEvent(): Calling function:', functionName);
+                  // Call the function with the parameter if it exists
+                  if (functionParams !== undefined) {
+                      window[functionName](functionParams);
+                  } else {
+                      window[functionName]();
+                  }
+                  // Send success feedback
+                  ws.send(JSON.stringify({
+                      type: 'jsFunctionResult',
+                      functionName: functionName,
+                      success: true
+                  }));
               } else {
-                  console.log(`CSS [${data}] is already included.`);
+                  console.error('========>>> [' + data + '] does not exist or is not a function');
+                  // Send failure feedback
+                  ws.send(JSON.stringify({
+                      type: 'jsFunctionResult',
+                      functionName: data,
+                      success: false
+                  }));
               }
-              break;
-        case 'showPopup':
-            console.log('Handling showPopup:', data.id);
-            showPopup(data.id, data.content);
+          }
+          break;
+      case 'includeJsFile':
+          console.log('Handling includeJsFile:', data);
+          // Ensure the script path starts with '/' and only includes the file name
+          let jsFileName = data.split('/').pop();  // Extract the last part of the path
+          if (jsFileName) {
+              data = '/' + jsFileName;  // Prepend '/' to the file name
+          }
+          // Create a promise for this script load
+          scriptLoadPromises[data] = new Promise((resolve) => {
+              const script = document.createElement('script');
+              script.src = data;
+              script.onload = () => {
+                  console.log(`Script [${data}] loaded`);
+                  delete scriptLoadPromises[data];  // Clean up
+                  resolve();
+              };
+              document.body.appendChild(script);
+          });
+          break;
+          case 'includeCssFile':
+            console.log('Handling includeCssFile:', data);
+            // Ensure the script path starts with '/' and only includes the file name
+            let cssFileName = data.split('/').pop();  // Extract the last part of the path
+            if (cssFileName) {
+                data = '/' + cssFileName;  // Prepend '/' to the file name
+            }
+            // Check if the CSS is already included to avoid duplicates
+            if (!document.querySelector(`link[href="${data}"]`)) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = data;
+                link.onload = () => {
+                    console.log(`CSS [${data}] loaded`);
+                };
+                link.onerror = () => {
+                    console.error(`Failed to load CSS [${data}]`);
+                };
+                document.head.appendChild(link);
+            } else {
+                console.log(`CSS [${data}] is already included.`);
+            }
             break;
-        default:
-            console.warn('Unhandled event type:', eventType);
-    }
+      case 'showPopup':
+          console.log('Handling showPopup:', data.id);
+          showPopup(data.id, data.content);
+          break;
+      default:
+          console.warn('Unhandled event type:', eventType);
+  }
+
 } // handleEvent()
 
 
@@ -562,4 +575,16 @@ function processAction(processType) {
 ws.send(JSON.stringify(message));
 
 } // processAction()
+
+function javaFunctionWithParams(param1) 
+{
+  console.log('Java function called with params[', param1, ']');
+
+} // javaFunctionWithParams(param1)
+
+function javaFunctionWithoutParams() 
+{
+  console.log('Java function called without params');
+  
+} // javaFunctionWithoutParams()
 

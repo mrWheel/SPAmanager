@@ -436,4 +436,14 @@ void loop()
   spa.server.handleClient();
   spa.ws.loop();
   updateCounter();
+
+  static uint32_t testTimer = 0;
+  if (millis() - testTimer > 30000) 
+  {
+    testTimer = millis();
+    debug->printf("setup(): call java function with param: [%s]\n", "Hello World");
+    spa.callJsFunction("javaFunctionWithParams", "Hello World");
+    debug->printf("setup(): call java function without param\n");
+    spa.callJsFunction("javaFunctionWithoutParams");
+  }
 }
