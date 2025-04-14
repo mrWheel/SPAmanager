@@ -416,7 +416,7 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
               debug(("Forwarding custom message to local event handler (WStype [" + std::to_string(WStype_TEXT) + "])").c_str());
               // Forward the event to the local event handler
               localEventsCallback(num, WStype_TEXT, payload, length);
-              eventHandled = true;
+              //-no-eventHandled = true;
           } else {
               debug("No local event handler registered for custom message");
           }
@@ -434,7 +434,9 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
     }
     
     // If no event was handled and we have a local events callback, call it
-    if (!eventHandled && localEventsCallback) {
+  //if (!eventHandled && localEventsCallback) 
+    if (localEventsCallback) 
+    {
       localEventsCallback(num, type, payload, length);
     }
 
@@ -1225,7 +1227,30 @@ void SPAmanager::callJsFunction(const char* functionName)
       ws.broadcastTXT(output.c_str(), output.length());
     }
   }
-}
+} // callJsFunction()
+
+void SPAmanager::callJsFunction(const char* functionName, const char* parameter)
+{
+  debug(("SPAmanager::callJsFunction() called with function: " + std::string(functionName) + ", parameter: " + std::string(parameter)).c_str());
+  if (hasConnectedClient)
+  {
+    const size_t capacity = JSON_OBJECT_SIZE(3); // Three key-value pairs
+    DynamicJsonDocument doc(capacity);
+
+    // Adjusted structure to match JavaScript expectation
+    doc["event"] = "callJsFunction";
+    doc["data"]  = functionName;
+    doc["params"] = parameter;
+
+    std::string output;
+    serializeJson(doc, output);
+
+    if (!output.empty())
+    {
+      ws.broadcastTXT(output.c_str(), output.length());
+    }
+  }
+} // callJsFunction() - parameterized version
 
 void SPAmanager::handleJsFunctionResult(const char* functionName, bool success)
 {
