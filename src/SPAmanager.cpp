@@ -19,10 +19,9 @@ SPAmanager::SPAmanager(uint16_t port)
     , pages()
     , activePage(nullptr)
     , servedFiles()  // Initialize empty set
-
-{
-    debug(("SPAmanager::  constructor called with port: " + std::to_string(port)).c_str());
-}
+    {
+      debug(("SPAmanager::  constructor called with port: " + std::to_string(port)).c_str());
+    }
 
 void SPAmanager::begin(const char* systemPath, Stream* debugOut) 
 {
@@ -1296,7 +1295,7 @@ void SPAmanager::updateClients()
 
 void SPAmanager::debug(const char* message) 
 {
-    if (debugOut) 
+    if (debugOut && doDebug) 
     {
       std::string debugMessage = "SPAmanager:: " + std::string(message);
       debugOut->println(debugMessage.c_str());

@@ -187,6 +187,11 @@ class SPAmanager
     //-- Utility methods
     void debug(const char* message);
     void handleJsFunctionResult(const char* functionName, bool success);
-};
+#ifdef SPAMANAGER_DEBUG
+    bool doDebug = true;
+#else
+    bool doDebug = false;
+#endif
+  };
 
 #endif // SPA_MANAGER_H
