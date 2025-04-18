@@ -15,6 +15,8 @@ SPAmanager::SPAmanager(uint16_t port)
     , currentMessage{0}
     , isError(false)
     , messageEndTime(0)
+    , isPopup(false)
+    , showCloseButton(false)
     , menus()
     , pages()
     , activePage(nullptr)
@@ -463,6 +465,8 @@ void SPAmanager::broadcastState()
     doc["message"] = currentMessage;
     doc["isError"] = isError;
     doc["messageDuration"] = messageEndTime > 0 ? (messageEndTime - millis()) : 0;
+    doc["isPopup"] = isPopup;
+    doc["showCloseButton"] = showCloseButton;
     
     JsonArray menuArray = doc.createNestedArray("menus");
     for (const auto& menu : menus) 
@@ -486,13 +490,13 @@ void SPAmanager::broadcastState()
         }
     }
     
-        std::string output;
-        serializeJson(doc, output);
-        
-        if (!output.empty()) 
-        {
-            ws.broadcastTXT(output.c_str(), output.length());
-        } 
+    std::string output;
+    serializeJson(doc, output);
+    
+    if (!output.empty()) 
+    {
+        ws.broadcastTXT(output.c_str(), output.length());
+    } 
     else 
     {
         debug("Failed to serialize JSON for broadcast state");
@@ -1283,12 +1287,26 @@ void SPAmanager::setErrorMessage(const char* message, int duration)
     updateClients();
 }
 
+void SPAmanager::setPopupMessage(const char* message, uint8_t duration) 
+{
+  debug(("setPopupMessage() called with message: " + std::string(message) + ", duration: " + std::to_string(duration)).c_str());
+  strncpy(currentMessage, message, MAX_MESSAGE_LEN-1);
+  currentMessage[MAX_MESSAGE_LEN-1] = '\0';
+  isError = false;
+  isPopup = true;
+  showCloseButton = (duration == 0);
+  messageEndTime = duration > 0 ? millis() + (duration * 1000) : 0;
+  updateClients();
+}
+
 void SPAmanager::updateClients() 
 {
     if (messageEndTime > 0 && millis() >= messageEndTime) 
     {
         currentMessage[0] = '\0';
         messageEndTime = 0;
+        isPopup = false;
+        showCloseButton = false;
     }
     broadcastState();
 }
