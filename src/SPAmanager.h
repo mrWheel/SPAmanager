@@ -46,6 +46,7 @@ class SPAmanager
     //-- UI/Interaction methods
     void setMessage(const char* message, int duration);
     void setErrorMessage(const char* message, int duration);
+    void setPopupMessage(const char* message, uint8_t duration);
     void callJsFunction(const char* functionName);
     void callJsFunction(const char* functionName, const char* parameter);
     void setLocalEventHandler(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback);
@@ -91,7 +92,9 @@ class SPAmanager
     char currentMessage[MAX_MESSAGE_LEN];
     bool isError;
     unsigned long messageEndTime;
-    
+    bool isPopup;
+    bool showCloseButton;
+        
     struct MenuItem 
     {
         char name[MAX_NAME_LEN];
@@ -186,7 +189,11 @@ class SPAmanager
     
     //-- Utility methods
     void debug(const char* message);
+    void error(const char* message);
     void handleJsFunctionResult(const char* functionName, bool success);
+    // Helper methods for validation
+    bool pageExists(const char* pageName) const;
+    bool menuExists(const char* pageName, const char* menuName) const;
 #ifdef SPAMANAGER_DEBUG
     bool doDebug = true;
 #else

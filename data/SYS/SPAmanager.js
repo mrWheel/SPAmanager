@@ -121,20 +121,83 @@ function connect() {
             } else {
               console.log("Received message that is not a full state update:", data);
             }
-            // Message Handling and Timed Removal
-            const msg = document.getElementById('message');
-            if (window.messageTimer) {
-                clearTimeout(window.messageTimer);
-                window.messageTimer = null;
-            }
-            msg.textContent = data.message || '';
-            msg.className = data.message ? (data.isError ? 'error-message' : 'normal-message') : '';
-            if (data.message && data.messageDuration > 0) {
-                window.messageTimer = setTimeout(() => {
-                    msg.textContent = '';
-                    msg.className = '';
+            
+            // Check if this is a popup message
+            if (data.isPopup && data.message) {
+              console.log("Processing popup message:", data.message);
+              console.log("showCloseButton:", data.showCloseButton);
+              console.log("messageDuration:", data.messageDuration);
+              
+              // Create popup content with or without close button
+              let popupContent = `<div class="popup-message">${data.message}</div>`;
+              
+              // Add countdown timer for messages with duration
+              if (data.messageDuration > 0) {
+                  let remainingSeconds = Math.ceil(data.messageDuration / 1000);
+                  popupContent += `<div id="popup-countdown" style="margin-top: 10px; text-align: center; font-size: 12px; color: #666;">Closing in ${remainingSeconds} seconds</div>`;
+              }
+              
+              // Add close button if needed
+              if (data.showCloseButton) {
+                  popupContent += `<button type="button" onClick="closePopup('popup_message')">Close</button>`;
+              }
+              
+              // Show the popup
+              showPopup('popup_message', popupContent);
+              
+              // Setup countdown timer
+              if (data.messageDuration > 0) {
+                  let remainingSeconds = Math.ceil(data.messageDuration / 1000);
+                  console.log(`Setting up countdown timer for ${remainingSeconds} seconds`);
+                  
+                  // Clear any existing interval
+                  if (window.popupCountdownInterval) {
+                      clearInterval(window.popupCountdownInterval);
+                      window.popupCountdownInterval = null;
+                  }
+                  
+                  const countdownId = setInterval(() => {
+                      remainingSeconds--;
+                      console.log(`Countdown: ${remainingSeconds} seconds remaining`);
+                      
+                      const countdownElement = document.getElementById('popup-countdown');
+                      if (countdownElement) {
+                          if (remainingSeconds > 0) {
+                              countdownElement.textContent = `Closing in ${remainingSeconds} seconds`;
+                          } else {
+                              countdownElement.textContent = 'Closing now...';
+                              clearInterval(countdownId);
+                              setTimeout(() => {
+                                  closePopup('popup_message');
+                              }, 500); // Small delay to show "Closing now..." message
+                          }
+                      } else {
+                          // Element not found, clear the interval
+                          console.log('Countdown element not found, clearing interval');
+                          clearInterval(countdownId);
+                      }
+                  }, 1000);
+                  
+                  // Store the interval ID so it can be cleared if needed
+                  window.popupCountdownInterval = countdownId;
+              }
+          
+            } else {
+                // Regular Message Handling and Timed Removal
+                const msg = document.getElementById('message');
+                if (window.messageTimer) {
+                    clearTimeout(window.messageTimer);
                     window.messageTimer = null;
-                }, data.messageDuration);
+                }
+                msg.textContent = data.message || '';
+                msg.className = data.message ? (data.isError ? 'error-message' : 'normal-message') : '';
+                if (data.message && data.messageDuration > 0) {
+                    window.messageTimer = setTimeout(() => {
+                        msg.textContent = '';
+                        msg.className = '';
+                        window.messageTimer = null;
+                    }, data.messageDuration);
+                }
             }
         } catch (error) {
             console.error('Error parsing message:', error);
@@ -418,9 +481,39 @@ function includeJsFile(fileName) {
   });
 }
 
+// Define closePopup as a standalone function
+window.closePopup = function(popupId) {
+  console.log(`Closing popup: ${popupId}`);
+  
+  // Clear any active countdown timer
+  if (window.popupCountdownInterval) {
+      console.log('Clearing countdown interval');
+      clearInterval(window.popupCountdownInterval);
+      window.popupCountdownInterval = null;
+  }
+  
+  const overlay = document.getElementById(popupId + '_overlay');
+  if (overlay) {
+      document.body.removeChild(overlay);
+  }
+};
 
 // Function to handle popup windows
 function showPopup(id, content) {
+  console.log(`Showing popup: ${id}, with content:`, content);
+  
+  // Remove any existing popup first
+  const existingOverlay = document.querySelector('.dM_popup-overlay');
+  if (existingOverlay) {
+      document.body.removeChild(existingOverlay);
+  }
+  
+  // Clear any existing countdown timer
+  if (window.popupCountdownInterval) {
+      clearInterval(window.popupCountdownInterval);
+      window.popupCountdownInterval = null;
+  }
+  
   const popupOverlay = document.createElement('div');
   popupOverlay.className = 'dM_popup-overlay';
   popupOverlay.id = id + '_overlay';
@@ -431,104 +524,96 @@ function showPopup(id, content) {
   
   popupContent.innerHTML = content;
   
-  // Add close function
-  window.closePopup = function(popupId) {
-    const overlay = document.getElementById(popupId + '_overlay');
-    if (overlay) {
-      document.body.removeChild(overlay);
-    }
-  };
-  
   // Handle file upload if present
   const fileInput = popupContent.querySelector('input[type="file"]');
   if (fileInput) {
-    // Add change event listener to enable/disable upload button
-    fileInput.addEventListener('change', function() {
-      const uploadButton = popupContent.querySelector('#uploadButton');
-      const selectedFileName = popupContent.querySelector('#selectedFileName');
-      
-      if (this.files && this.files.length > 0) {
-        // Enable upload button
-        if (uploadButton) {
-          uploadButton.disabled = false;
-          console.log('Upload button enabled');
-        }
-        
-        // Display selected filename
-        if (selectedFileName) {
-          selectedFileName.textContent = 'Selected: ' + this.files[0].name;
-        }
-      } else {
-        // Disable upload button if no file selected
-        if (uploadButton) {
-          uploadButton.disabled = true;
-        }
-        
-        // Clear filename display
-        if (selectedFileName) {
-          selectedFileName.textContent = '';
-        }
-      }
-    });
-    
-    fileInput.onchange = function(event) {
-      if (this.files.length > 0) {
-        // Extract the function name from the onchange attribute
-        const onchangeAttr = fileInput.getAttribute('onchange');
-        if (onchangeAttr) {
-          const funcMatch = onchangeAttr.match(/(\w+)\s*\(/);
-          if (funcMatch && funcMatch[1]) {
-            const funcName = funcMatch[1];
-            // Store the file in a global variable so the function can access it
-            window.selectedFile = this.files[0];
-            // Call the function using callJsFunction mechanism
-            if (typeof window[funcName] === 'function') {
-              window[funcName](this.files[0]);
-            }
-            // Only close the popup if there was an onchange attribute
-            window.closePopup(id);
+      // Add change event listener to enable/disable upload button
+      fileInput.addEventListener('change', function() {
+          const uploadButton = popupContent.querySelector('#uploadButton');
+          const selectedFileName = popupContent.querySelector('#selectedFileName');
+          
+          if (this.files && this.files.length > 0) {
+              // Enable upload button
+              if (uploadButton) {
+                  uploadButton.disabled = false;
+                  console.log('Upload button enabled');
+              }
+              
+              // Display selected filename
+              if (selectedFileName) {
+                  selectedFileName.textContent = 'Selected: ' + this.files[0].name;
+              }
+          } else {
+              // Disable upload button if no file selected
+              if (uploadButton) {
+                  uploadButton.disabled = true;
+              }
+              
+              // Clear filename display
+              if (selectedFileName) {
+                  selectedFileName.textContent = '';
+              }
           }
-        }
-        // The closePopup call has been moved inside the if (onchangeAttr) block
-      }
-    };
+      });
+      
+      fileInput.onchange = function(event) {
+          if (this.files.length > 0) {
+              // Extract the function name from the onchange attribute
+              const onchangeAttr = fileInput.getAttribute('onchange');
+              if (onchangeAttr) {
+                  const funcMatch = onchangeAttr.match(/(\w+)\s*\(/);
+                  if (funcMatch && funcMatch[1]) {
+                      const funcName = funcMatch[1];
+                      // Store the file in a global variable so the function can access it
+                      window.selectedFile = this.files[0];
+                      // Call the function using callJsFunction mechanism
+                      if (typeof window[funcName] === 'function') {
+                          window[funcName](this.files[0]);
+                      }
+                      // Only close the popup if there was an onchange attribute
+                      window.closePopup(id);
+                  }
+              }
+              // The closePopup call has been moved inside the if (onchangeAttr) block
+          }
+      };
   }
   
   // Handle buttons with onClick attributes
   const buttons = popupContent.querySelectorAll('button[onClick]');
   buttons.forEach(button => {
-    const onClickAttr = button.getAttribute('onClick');
-    if (onClickAttr) {
-      button.onclick = function(event) {
-        // Parse the onClick attribute to extract function name and parameters
-        const funcMatch = onClickAttr.match(/(\w+)\s*\(([^)]*)\)/);
-        if (funcMatch) {
-          const funcName = funcMatch[1];
-          const params = funcMatch[2].split(',').map(p => p.trim());
-          
-          // If parameters are specified, collect their values
-          const paramValues = [];
-          params.forEach(param => {
-            if (param) {
-              const inputElem = document.getElementById(param);
-              if (inputElem) {
-                paramValues.push(inputElem.value);
-              } else {
-                paramValues.push(param); // Use the parameter name as a literal if no element found
+      const onClickAttr = button.getAttribute('onClick');
+      if (onClickAttr) {
+          button.onclick = function(event) {
+              // Parse the onClick attribute to extract function name and parameters
+              const funcMatch = onClickAttr.match(/(\w+)\s*\(([^)]*)\)/);
+              if (funcMatch) {
+                  const funcName = funcMatch[1];
+                  const params = funcMatch[2].split(',').map(p => p.trim());
+                  
+                  // If parameters are specified, collect their values
+                  const paramValues = [];
+                  params.forEach(param => {
+                      if (param) {
+                          const inputElem = document.getElementById(param);
+                          if (inputElem) {
+                              paramValues.push(inputElem.value);
+                          } else {
+                              paramValues.push(param); // Use the parameter name as a literal if no element found
+                          }
+                      }
+                  });
+                  
+                  // Call the function with the collected parameters
+                  if (typeof window[funcName] === 'function') {
+                      window[funcName](...paramValues);
+                  }
               }
-            }
-          });
-          
-          // Call the function with the collected parameters
-          if (typeof window[funcName] === 'function') {
-            window[funcName](...paramValues);
-          }
-        }
-        
-        // Close the popup
-        window.closePopup(id);
-      };
-    }
+              
+              // Close the popup
+              window.closePopup(id);
+          };
+      }
   });
   
   document.body.appendChild(popupOverlay);

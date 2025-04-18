@@ -52,17 +52,27 @@ void mainCallback2()
 void exitCounterCallback()
 {
     spa.setMessage("Counter: \"Exit\" clicked!", 10);
+    spa.setPopupMessage("Counter: \"Exit\" clicked!", 5);
     spa.activatePage("Main");
 }
 
 
 
-void mainCallback3()
+void mainFSCallbackStart()
 {
-    spa.setMessage("Main Menu \"FSmanager\" clicked!", 5);
+    //spa.setMessage("Main Menu \"FSmanager\" clicked!", 10);
+    spa.setPopupMessage("Main Menu \"FSmanager\" clicked!", 10);
     spa.activatePage("FSmanagerPage");
     spa.callJsFunction("loadFileList");
 }
+
+void handleFSexitCallback()
+{
+    spa.setMessage("FS Manager : Exit Clicked!", 5);
+    spa.setPopupMessage("FSmanager \"Exit\" clicked!", 0);
+    spa.activatePage("Main");
+}
+
 
 void processInputCallback(const std::map<std::string, std::string>& inputValues)
 {
@@ -196,7 +206,7 @@ void setupMainPage()
     spa.addMenu("Main", "Main Menu");
     spa.addMenuItem("Main", "Main Menu", "StopWatch", mainCallback1);
     spa.addMenuItem("Main", "Main Menu", "InputTest", mainCallback2);
-    spa.addMenuItem("Main", "Main Menu", "FSmanager", mainCallback3);
+    spa.addMenuItem("Main", "Main Menu", "FSmanager", mainFSCallbackStart);
     spa.addMenuItem("Main", "Main Menu", "isFSmanagerLoaded", doJsFunction);
     spa.addMenu("Main", "TestPopUp");
     const char *popup5Input = R"HTML(
@@ -330,7 +340,12 @@ void setupFSmanagerPage()
   spa.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleMenuItem, "FSM-1");
   spa.addMenuItemPopup("FSmanagerPage", "FS Manager", "Upload File", popupUploadFile);
   spa.addMenuItemPopup("FSmanagerPage", "FS Manager", "Create Folder", popupNewFolder);
-  spa.addMenuItem("FSmanagerPage", "FS Manager", "Exit",          handleMenuItem, "FSM-4");
+  spa.addMenuItem("FSmanagerPage", "FS Manager", "Exit", handleFSexitCallback);
+
+  //--- generate some errors - just for testing
+  spa.addMenuItem("notExistingPage", "FS Manager", "Error 1", handleMenuItem, "FSM-2");
+  spa.addMenuItem("FSmanagerPage", "XYZ", "Error 2", handleMenuItem, "FSM-2");
+  spa.activatePage("notExistingPage");
 
 }
 
