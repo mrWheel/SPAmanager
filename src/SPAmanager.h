@@ -189,7 +189,11 @@ class SPAmanager
     
     //-- Utility methods
     void debug(const char* message);
+    void error(const char* message);
     void handleJsFunctionResult(const char* functionName, bool success);
+    // Helper methods for validation
+    bool pageExists(const char* pageName) const;
+    bool menuExists(const char* pageName, const char* menuName) const;
 #ifdef SPAMANAGER_DEBUG
     bool doDebug = true;
 #else

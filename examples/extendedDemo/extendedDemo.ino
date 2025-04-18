@@ -342,6 +342,11 @@ void setupFSmanagerPage()
   spa.addMenuItemPopup("FSmanagerPage", "FS Manager", "Create Folder", popupNewFolder);
   spa.addMenuItem("FSmanagerPage", "FS Manager", "Exit", handleFSexitCallback);
 
+  //--- generate some errors - just for testing
+  spa.addMenuItem("notExistingPage", "FS Manager", "Error 1", handleMenuItem, "FSM-2");
+  spa.addMenuItem("FSmanagerPage", "XYZ", "Error 2", handleMenuItem, "FSM-2");
+  spa.activatePage("notExistingPage");
+
 }
 
 

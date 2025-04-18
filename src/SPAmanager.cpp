@@ -766,6 +766,14 @@ template void SPAmanager::setPlaceholder<double>(const char*, const char*, doubl
 void SPAmanager::activatePage(const char* pageName) 
 {
     debug(("activatePage() called with pageName: " + std::string(pageName)).c_str());
+    
+    // Check if the page exists
+    if (!pageExists(pageName))
+    {
+      error(("ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+      return;
+    }
+    
     for (auto& page : pages) 
     {
         bool shouldBeVisible = (strcmp(page.name, pageName) == 0);
@@ -790,6 +798,14 @@ std::string SPAmanager::getActivePageName() const
 void SPAmanager::addMenu(const char* pageName, const char* menuName) 
 {
     debug(("addMenu() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName)).c_str());
+    
+    // Check if the page exists
+    if (!pageExists(pageName))
+    {
+      error(("addMenu(): ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+      return;
+    }
+    
     Menu menu;
     menu.setName(menuName);
     menu.setPageName(pageName);
@@ -802,6 +818,21 @@ void SPAmanager::addMenu(const char* pageName, const char* menuName)
 void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void()> callback) 
 {
     debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + " (callback)").c_str());
+    
+    // Check if the page exists
+    if (!pageExists(pageName))
+    {
+      error(("addMenuItem(): ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+      return;
+    }
+    
+    // Check if the menu exists
+    if (!menuExists(pageName, menuName))
+    {
+      error(("addMenuItem(): ERROR: Menu [" + std::string(menuName) + "] does not exist on page [" + std::string(pageName) + "]").c_str());
+      return;
+    }
+    
     for (auto& menu : menus) 
     {
         if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
@@ -822,6 +853,21 @@ void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const c
 void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, const char* url) 
 {
     debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + ", url: " + std::string(url)).c_str());
+    
+    // Check if the page exists
+    if (!pageExists(pageName))
+    {
+      error(("addMenuItem(): ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+      return;
+    }
+    
+    // Check if the menu exists
+    if (!menuExists(pageName, menuName))
+    {
+      error(("addMenuItem(): ERROR: Menu [" + std::string(menuName) + "] does not exist on page [" + std::string(pageName) + "]").c_str());
+      return;
+    }
+    
     for (auto& menu : menus) 
     {
         if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
@@ -841,6 +887,21 @@ void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const c
 void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const char* itemName, std::function<void(const char*)> callback, const char* param) 
 {
   debug(("addMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName) + " (callback with param)").c_str());
+  
+  // Check if the page exists
+  if (!pageExists(pageName))
+  {
+    error(("addMenuItem(): ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+    return;
+  }
+  
+  // Check if the menu exists
+  if (!menuExists(pageName, menuName))
+  {
+    error(("addMenuItem(): ERROR: Menu [" + std::string(menuName) + "] does not exist on page [" + std::string(pageName) + "]").c_str());
+    return;
+  }
+  
   for (auto& menu : menus) 
   {
     if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
@@ -861,6 +922,20 @@ void SPAmanager::addMenuItem(const char* pageName, const char* menuName, const c
 void SPAmanager::addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback)
 {
   debug(("addMenuItemPopup() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", menuItem: " + std::string(menuItem)).c_str());
+  
+  // Check if the page exists
+  if (!pageExists(pageName))
+  {
+    error(("addMenuItemPopup(): ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+    return;
+  }
+  
+  // Check if the menu exists
+  if (!menuExists(pageName, menuName))
+  {
+    error(("addMenuItemPopup(): ERROR: Menu [" + std::string(menuName) + "] does not exist on page [" + std::string(pageName) + "]").c_str());
+    return;
+  }
   
   for (auto& menu : menus)
   {
@@ -913,6 +988,21 @@ void SPAmanager::addMenuItemPopup(const char* pageName, const char* menuName, co
 void SPAmanager::enableMenuItem(const char* pageName, const char* menuName, const char* itemName)
 {
     debug(("enableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
+    
+    // Check if the page exists
+    if (!pageExists(pageName))
+    {
+      error(("enableMenuItem(): ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+      return;
+    }
+    
+    // Check if the menu exists
+    if (!menuExists(pageName, menuName))
+    {
+      error(("enableMenuItem(): ERROR: Menu [" + std::string(menuName) + "] does not exist on page [" + std::string(pageName) + "]").c_str());
+      return;
+    }
+    
     for (auto& menu : menus) 
     {
         if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
@@ -937,6 +1027,21 @@ void SPAmanager::enableMenuItem(const char* pageName, const char* menuName, cons
 void SPAmanager::disableMenuItem(const char* pageName, const char* menuName, const char* itemName)
 {
     debug(("disableMenuItem() called with pageName: " + std::string(pageName) + ", menuName: " + std::string(menuName) + ", itemName: " + std::string(itemName)).c_str());
+    
+    // Check if the page exists
+    if (!pageExists(pageName))
+    {
+      error(("disableMenuItem(): ERROR: Page [" + std::string(pageName) + "] does not exist").c_str());
+      return;
+    }
+    
+    // Check if the menu exists
+    if (!menuExists(pageName, menuName))
+    {
+      error(("disableMenuItem(): ERROR: Menu [" + std::string(menuName) + "] does not exist on page [" + std::string(pageName) + "]").c_str());
+      return;
+    }
+    
     for (auto& menu : menus) 
     {
         if (strcmp(menu.name, menuName) == 0 && strcmp(menu.pageName, pageName) == 0) 
@@ -1102,7 +1207,7 @@ void SPAmanager::includeJsFile(const std::string &path2JsFile)
   //-- Reject a single slash as an invalid path
   if (sanitizedJsPath == "/") 
   {
-    debug("ERROR: path2JsFile cannot be '/'");
+    error("ERROR: path2JsFile cannot be '/'");
     return;
   }
 
@@ -1161,7 +1266,7 @@ void SPAmanager::includeCssFile(const std::string &path2CssFile)
   //-- Reject a single slash as an invalid path
   if (sanitizedCssPath == "/") 
   {
-    debug("ERROR: path2CssFile cannot be '/'");
+    error("ERROR: path2CssFile cannot be '/'");
     return;
   }
 
@@ -1263,7 +1368,7 @@ void SPAmanager::handleJsFunctionResult(const char* functionName, bool success)
   }
   else
   {
-    debug(("JavaScript function [" + std::string(functionName) + "] not found or failed to execute").c_str());
+    error(("JavaScript function [" + std::string(functionName) + "] not found or failed to execute").c_str());
   }
 }
 
@@ -1318,6 +1423,38 @@ void SPAmanager::debug(const char* message)
       std::string debugMessage = "SPAmanager:: " + std::string(message);
       debugOut->println(debugMessage.c_str());
     }
+}
+
+void SPAmanager::error(const char* message) 
+{
+  std::string debugMessage = "SPAmanager:: " + std::string(message);
+  debugOut->println(debugMessage.c_str());
+}
+
+// Helper method to check if a page exists
+bool SPAmanager::pageExists(const char* pageName) const
+{
+  for (const auto& page : pages)
+  {
+    if (strcmp(page.name, pageName) == 0)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Helper method to check if a menu exists on a specific page
+bool SPAmanager::menuExists(const char* pageName, const char* menuName) const
+{
+  for (const auto& menu : menus)
+  {
+    if (strcmp(menu.pageName, pageName) == 0 && strcmp(menu.name, menuName) == 0)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
 
