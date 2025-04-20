@@ -18,6 +18,7 @@ class SPAmanager
     static const size_t MAX_NAME_LEN = 32;
     static const size_t MAX_URL_LEN = 64;
     static const size_t MAX_CONTENT_LEN = 4096;
+    static const size_t MAX_ERROR_PAGE_LEN = 512;
     static const size_t MAX_MESSAGE_LEN = 80;
     static const size_t MAX_VALUE_LEN = 32;
 
@@ -30,6 +31,9 @@ class SPAmanager
     
     //-- Page-related methods
     void addPage(const char* pageName, const char* html);
+    bool addPageWithMemoryCheck(const char* pageName, const char* html, bool useFilesystemFallback = true);
+    void addPage2FileSystem(const char* pageName, const char* html);
+    bool canAddPage(const char* html, size_t reserveBuffer = 10000);
     void activatePage(const char* pageName);
     std::string getActivePageName() const;
     void setPageTitle(const char* pageName, const char* title);
@@ -42,7 +46,8 @@ class SPAmanager
     void addMenuItemPopup(const char* pageName, const char* menuName, const char* menuItem, const char* popupMenu, std::function<void(const std::map<std::string, std::string>&)> callback = nullptr);
     void enableMenuItem(const char* pageName, const char* menuName, const char* itemName);
     void disableMenuItem(const char* pageName, const char* menuName, const char* itemName);
-    
+    bool pageExists(const char* pageName) const;
+
     //-- UI/Interaction methods
     void setMessage(const char* message, int duration);
     void setErrorMessage(const char* message, int duration);
@@ -53,6 +58,7 @@ class SPAmanager
 
     template <typename T>
     void setPlaceholder(const char* pageName, const char* placeholder, T value);
+
     class PlaceholderValue 
     {
       public:
@@ -79,6 +85,8 @@ class SPAmanager
     void includeCssFile(const std::string &cssFile);
     void includeJsFile(const std::string &scriptFile);
 
+    static const char* MINIMAL_FSMANAGER_PAGE;
+
   private:
     Stream* debugOut;
     uint8_t currentClient;  //-- Store current connected client number
@@ -94,7 +102,8 @@ class SPAmanager
     unsigned long messageEndTime;
     bool isPopup;
     bool showCloseButton;
-        
+    static const char* DEFAULT_ERROR_PAGE;
+
     struct MenuItem 
     {
         char name[MAX_NAME_LEN];
@@ -192,7 +201,6 @@ class SPAmanager
     void error(const char* message);
     void handleJsFunctionResult(const char* functionName, bool success);
     // Helper methods for validation
-    bool pageExists(const char* pageName) const;
     bool menuExists(const char* pageName, const char* menuName) const;
 #ifdef SPAMANAGER_DEBUG
     bool doDebug = true;

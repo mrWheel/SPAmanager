@@ -5,6 +5,22 @@
 #include <sstream>
 #include <WString.h>
 
+const char* SPAmanager::DEFAULT_ERROR_PAGE = R"HTML(
+  <div style="text-align: center; padding: 20px;">
+    <h2>Error: Insufficient Memory</h2>
+    <p>Unable to load this page due to memory constraints.</p>
+    <p>Please free up memory by restarting the device or reducing other functionality.</p>
+  </div>
+)HTML";
+
+const char* SPAmanager::MINIMAL_FSMANAGER_PAGE = R"HTML(
+  <div style="text-align: center; padding: 20px;">
+    <h2>File System Manager (Limited Mode)</h2>
+    <p>Running in limited functionality mode due to memory constraints.</p>
+    <div id="fileList"></div>
+  </div>
+)HTML";
+
 SPAmanager::SPAmanager(uint16_t port) 
     : server(port)
     , ws(81)
@@ -45,13 +61,7 @@ void SPAmanager::begin(const char* systemPath, Stream* debugOut)
 
     this->debugOut = debugOut;
 
-    if (!LittleFS.begin(true)) 
-    {
-        debug("An error occurred while mounting LittleFS");
-        return;
-    }
-
-    debug(("begin(): called with rootSystemPath: [" + rootSystemPath + "]").c_str());
+    debug(("SPAmanager::begin: begin(): called with rootSystemPath: [" + rootSystemPath + "]").c_str());
     setupWebServer();
 
 } //  begin()
@@ -63,6 +73,8 @@ void SPAmanager::setupWebServer()
     ws.onEvent([this](uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
         handleWebSocketEvent(num, type, payload, length);
     });
+
+    server.serveStatic("/pages/", LittleFS, "/pages/");
 
     std::string filePath = std::string(rootSystemPath) + "/SPAmanager.css";
     server.serveStatic("/SPAmanager.css", LittleFS, filePath.c_str());
@@ -507,33 +519,216 @@ void SPAmanager::addPage(const char* pageName, const char* html)
 {
     debug(("addPage() called with pageName: " + std::string(pageName)).c_str());
     
+    // Check available heap memory
+    size_t freeHeap = ESP.getFreeHeap();
+    size_t requiredMem = strlen(html) + sizeof(Page);
+    
+    debug(("addPage(): Available heap: " + std::to_string(freeHeap) + 
+           ", Required: " + std::to_string(requiredMem)).c_str());
+    
+    // Store first page name if this is the first page
     if (pages.empty()) {
-      firstPageName = pageName;  // Store the first page name
+      firstPageName = pageName;
     }
     
+    // Check if page already exists
     auto it = std::find_if(pages.begin(), pages.end(),
         [pageName](const Page& page) { return strcmp(page.name, pageName) == 0; });
     
     if (it != pages.end()) 
     {
-        it->setContent(html);
-        updateClients();
-    }
-    else 
-    {
-        Page page;
-        page.setName(pageName);
-        page.setContent(html);
-        page.isVisible = false;
-        pages.push_back(page);
-        if (!activePage) {
-            activePage = &pages.back();
-            pages.back().isVisible = true;
-            setHeaderTitle(pages.back().title);
+        // Page exists, update content if we have enough memory
+        if (freeHeap > requiredMem + 10000) { // Keep 10KB buffer
+            it->setContent(html);
+            updateClients();
+        } else {
+            // Not enough memory, use error page
+            it->setContent(DEFAULT_ERROR_PAGE);
+            error(("addPage(): Not enough memory to update page: " + std::string(pageName)).c_str());
             updateClients();
         }
     }
-}
+    else 
+    {
+        // New page, add it if we have enough memory
+        if (freeHeap > requiredMem + 10000) { // Keep 10KB buffer
+            Page page;
+            page.setName(pageName);
+            page.setContent(html);
+            page.isVisible = false;
+            pages.push_back(page);
+            if (!activePage) {
+                activePage = &pages.back();
+                pages.back().isVisible = true;
+                setHeaderTitle(pages.back().title);
+                updateClients();
+            }
+        } else {
+            // Not enough memory, add error page instead
+            Page page;
+            page.setName(pageName);
+            page.setContent(DEFAULT_ERROR_PAGE);
+            page.isVisible = false;
+            pages.push_back(page);
+            error(("addPage(): Not enough memory to add page: " + std::string(pageName) + ", using error page").c_str());
+            if (!activePage) {
+                activePage = &pages.back();
+                pages.back().isVisible = true;
+                setHeaderTitle(pages.back().title);
+                updateClients();
+            }
+        }
+    }
+} // addPage()
+
+bool SPAmanager::addPageWithMemoryCheck(const char* pageName, const char* html, bool useFilesystemFallback) 
+{
+  // Check available heap memory
+  size_t freeHeap = ESP.getFreeHeap();
+  size_t requiredMem = strlen(html) + sizeof(Page);
+  
+  debug(("addPageWithMemoryCheck(): Available heap: " + std::to_string(freeHeap) + 
+         ", Required: " + std::to_string(requiredMem)).c_str());
+  
+  if (freeHeap > requiredMem + 20000) { // Keep 20KB buffer to be safe
+    // Enough memory, proceed normally
+    try {
+      addPage(pageName, html);
+      return true;
+    } catch (...) {
+      debug("addPageWithMemoryCheck(): Exception when adding page normally");
+    }
+  }
+  
+  // If we get here, either we don't have enough memory or an exception occurred
+  // Use the default error page as a last resort
+  try {
+    addPage(pageName, DEFAULT_ERROR_PAGE);
+    debug(("addPageWithMemoryCheck(): Using error page for: " + std::string(pageName)).c_str());
+    return false;
+  } catch (...) {
+    debug("addPageWithMemoryCheck(): Exception when adding error page");
+    return false;
+  }
+} // addPageWithMemoryCheck()
+
+void SPAmanager::addPage2FileSystem(const char* pageName, const char* html)
+{
+  debug(("addPage2FileSystem() called with pageName: " + std::string(pageName)).c_str());
+  
+  // Check if LittleFS is mounted
+  if (!LittleFS.begin(false)) { // false = don't format if mount fails
+    error("addPage2FileSystem(): LittleFS not mounted, cannot store page");
+    return;
+  }
+  
+  // Create a sanitized filename
+  std::string fileName = std::string(pageName);
+  // Replace any non-alphanumeric characters with underscores
+  for (size_t i = 0; i < fileName.length(); i++) {
+    if (!isalnum(fileName[i])) {
+      fileName[i] = '_';
+    }
+  }
+  
+  // Create the full path
+  std::string filePath = "/pages/" + fileName + ".html";
+  
+  // Ensure the pages directory exists
+  if (!LittleFS.exists("/pages")) {
+    if (!LittleFS.mkdir("/pages")) {
+      error("addPage2FileSystem(): Failed to create /pages directory");
+      return;
+    }
+  }
+  
+  // Write the HTML content to the file
+  File file = LittleFS.open(filePath.c_str(), "w");
+  if (!file) {
+    error(("addPage2FileSystem(): Failed to open file for writing: " + filePath).c_str());
+    return;
+  }
+  
+  // Write the content to the file
+  size_t bytesWritten = file.print(html);
+  file.close();
+  
+  if (bytesWritten == 0) {
+    error(("addPage2FileSystem(): Failed to write content to file: " + filePath).c_str());
+    return;
+  }
+  
+  debug(("addPage2FileSystem(): Wrote " + std::to_string(bytesWritten) + " bytes to file: " + filePath).c_str());
+  
+  // Create a minimal loader page - much smaller than the previous one
+  const char* tinyLoader = "<meta http-equiv='refresh' content='0;url=/pages/";
+  const char* tinyLoaderEnd = ".html'>";
+  
+  // Calculate the total size needed for the loader
+  size_t loaderSize = strlen(tinyLoader) + fileName.length() + strlen(tinyLoaderEnd) + 1;
+  char* loader = new (std::nothrow) char[loaderSize];
+  
+  if (loader) {
+    // Construct the loader string
+    snprintf(loader, loaderSize, "%s%s%s", tinyLoader, fileName.c_str(), tinyLoaderEnd);
+    
+    try {
+      // Add the tiny loader page to memory
+      addPage(pageName, loader);
+      
+      // Serve the HTML file statically
+      server.serveStatic(filePath.c_str(), LittleFS, filePath.c_str());
+      
+      debug(("addPage2FileSystem(): Successfully added filesystem page: " + std::string(pageName)).c_str());
+    } catch (const std::exception& e) {
+      error(("addPage2FileSystem(): Exception when adding page: " + std::string(e.what())).c_str());
+      
+      // Create a minimal page with just a redirect
+      Page page;
+      page.setName(pageName);
+      page.setContent(loader);
+      page.isVisible = false;
+      pages.push_back(page);
+      
+      debug(("addPage2FileSystem(): Added minimal redirect page for: " + std::string(pageName)).c_str());
+    }
+    
+    // Free the allocated memory
+    delete[] loader;
+  } else {
+    error("addPage2FileSystem(): Failed to allocate memory for loader");
+    
+    // Try to add a very minimal page as a last resort
+    try {
+      Page page;
+      page.setName(pageName);
+      page.setContent("Loading...");
+      page.isVisible = false;
+      pages.push_back(page);
+      
+      // Set up a redirect handler
+      server.on(("/" + std::string(pageName)).c_str(), HTTP_GET, [this, filePath]() {
+        server.sendHeader("Location", filePath.c_str());
+        server.send(302, "text/plain", "Redirecting...");
+      });
+      
+      debug(("addPage2FileSystem(): Added fallback page for: " + std::string(pageName)).c_str());
+    } catch (...) {
+      error(("addPage2FileSystem(): Failed to add even a minimal page for: " + std::string(pageName)).c_str());
+    }
+  }
+  
+} // addPage2FileSystem()
+
+bool SPAmanager::canAddPage(const char* html, size_t reserveBuffer) 
+{
+  size_t freeHeap = ESP.getFreeHeap();
+  size_t requiredMem = strlen(html) + sizeof(Page);
+  
+  return (freeHeap > requiredMem + reserveBuffer);
+
+} // canAddPage()
+
 
 void SPAmanager::setPageTitle(const char* pageName, const char* title)
 {
@@ -550,7 +745,7 @@ void SPAmanager::setPageTitle(const char* pageName, const char* title)
       break;
     }
   }
-}
+} // setPageTitle()
 
 
 template <typename T>
