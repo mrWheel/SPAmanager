@@ -1410,6 +1410,21 @@ void SPAmanager::callJsFunction(const char* functionName, const char* parameter)
 
 void SPAmanager::handleJsFunctionResult(const char* functionName, bool success)
 {
+  // Check if functionName is null or empty
+  if (!functionName || functionName[0] == '\0')
+  {
+    if (success)
+    {
+      debug("JavaScript function [unknown] executed successfully");
+    }
+    else
+    {
+      error("JavaScript function [unknown] not found or failed to execute");
+    }
+    return;
+  }
+  
+  // Safe to use functionName now
   if (success)
   {
     debug(("JavaScript function [" + std::string(functionName) + "] executed successfully").c_str());
@@ -1419,6 +1434,7 @@ void SPAmanager::handleJsFunctionResult(const char* functionName, bool success)
     error(("JavaScript function [" + std::string(functionName) + "] not found or failed to execute").c_str());
   }
 }
+
 
 void SPAmanager::setMessage(const char* message, int duration) 
 {
