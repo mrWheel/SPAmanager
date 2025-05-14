@@ -1,6 +1,9 @@
 
 let ws;
 let pages = {};
+let pageContent = '';
+let receivedChunks = 0;
+let totalChunks = 0;
 
 console.log('====> SPAmanager.js loaded');
 
@@ -18,6 +21,76 @@ function connect() {
       try {
             const data = JSON.parse(event.data);
             console.log("Message received:", data);
+            
+            // Handle page chunks
+            if (data.type === 'pageChunk') {
+                console.log(`Received page chunk ${data.chunkIndex + 1}/${data.totalChunks}`);
+                
+                // If this is the first chunk, reset the content
+                if (data.chunkIndex === 0) {
+                    pageContent = '';
+                    receivedChunks = 0;
+                    totalChunks = data.totalChunks;
+                }
+                
+                // Accumulate chunks
+                pageContent += data.content;
+                receivedChunks++;
+                
+                // Update loading progress
+                updateLoadingProgress(receivedChunks, totalChunks);
+                
+                // If this is the final chunk or we've received all chunks, update the page
+                if (data.final || receivedChunks >= totalChunks) {
+                    console.log('All chunks received, updating page content');
+                    const bodyContent = document.getElementById('bodyContent');
+                    bodyContent.innerHTML = pageContent;
+                    bodyContent.style.display = 'block';
+                    
+                    // Reset for next time
+                    pageContent = '';
+                    receivedChunks = 0;
+                    totalChunks = 0;
+                    
+                    // Add input listeners to all input fields
+                    document.querySelectorAll('input[id]').forEach(input => {
+                        if (!input.hasInputListener) {
+                            input.addEventListener('input', () => {
+                                ws.send(JSON.stringify({
+                                    type: 'inputChange',
+                                    placeholder: input.id,
+                                    value: input.value
+                                }));
+                            });
+                            input.hasInputListener = true;
+                        }
+                    });
+                }
+                return;
+            }
+            
+            // Handle single content message
+            if (data.type === 'pageContent') {
+                console.log('Received complete page content');
+                const bodyContent = document.getElementById('bodyContent');
+                bodyContent.innerHTML = data.content;
+                bodyContent.style.display = 'block';
+                
+                // Add input listeners to all input fields
+                document.querySelectorAll('input[id]').forEach(input => {
+                    if (!input.hasInputListener) {
+                        input.addEventListener('input', () => {
+                            ws.send(JSON.stringify({
+                                type: 'inputChange',
+                                placeholder: input.id,
+                                value: input.value
+                            }));
+                        });
+                        input.hasInputListener = true;
+                    }
+                });
+                return;
+            }
     
             if (data.event === 'includeJsFile') {
               console.log(`addEventListener(): includeJsFile: [${data.data}]`);
@@ -71,52 +144,56 @@ function connect() {
               console.log("Processing full state update");
               
               // Handle Full State Update
-              const bodyContent = document.getElementById('bodyContent');
-              bodyContent.innerHTML = data.body || '';
-              bodyContent.style.display = data.isVisible ? 'block' : 'none';
-    
-              // Efficient Input Listener Addition
-              document.querySelectorAll('input[id]').forEach(input => {
-                  if (!input.hasInputListener) {
-                      input.addEventListener('input', () => {
-                          ws.send(JSON.stringify({
-                              type: 'inputChange',
-                              placeholder: input.id,
-                              value: input.value
-                          }));
-                      });
-                      input.hasInputListener = true;
-                  }
-              });
+              if (data.body) {
+                const bodyContent = document.getElementById('bodyContent');
+                bodyContent.innerHTML = data.body;
+                bodyContent.style.display = data.isVisible ? 'block' : 'none';
+        
+                // Efficient Input Listener Addition
+                document.querySelectorAll('input[id]').forEach(input => {
+                    if (!input.hasInputListener) {
+                        input.addEventListener('input', () => {
+                            ws.send(JSON.stringify({
+                                type: 'inputChange',
+                                placeholder: input.id,
+                                value: input.value
+                            }));
+                        });
+                        input.hasInputListener = true;
+                    }
+                });
+              }
     
               // Dynamic Menu Rendering
-              const menuContainer = document.querySelector('.dM_left');
-              menuContainer.innerHTML = '';
-              if (data.menus && data.menus.length > 0) {
-                  data.menus.forEach(menu => {
-                      const menuDiv = document.createElement('div');
-                      menuDiv.className = 'dM_dropdown';
-                      const menuSpan = document.createElement('span');
-                      menuSpan.textContent = menu.name;
-                      menuDiv.appendChild(menuSpan);
-    
-                      const menuList = document.createElement('ul');
-                      menuList.className = 'dM_dropdown-menu';
-                      menu.items.forEach(item => {
-                          const li = document.createElement('li');
-                          if (item.disabled) li.className = 'disabled';
-                          const link = document.createElement(item.url ? 'a' : 'span');
-                          link.textContent = item.name;
-                          if (item.url) link.href = item.url;
-                          if (!item.disabled && !item.url) {
-                              link.onclick = () => handleMenuClick(menu.name, item.name);
-                          }
-                          li.appendChild(link);
-                          menuList.appendChild(li);
-                      });
-                      menuDiv.appendChild(menuList);
-                      menuContainer.appendChild(menuDiv);
-                  });
+              if (data.menus) {
+                const menuContainer = document.querySelector('.dM_left');
+                menuContainer.innerHTML = '';
+                if (data.menus && data.menus.length > 0) {
+                    data.menus.forEach(menu => {
+                        const menuDiv = document.createElement('div');
+                        menuDiv.className = 'dM_dropdown';
+                        const menuSpan = document.createElement('span');
+                        menuSpan.textContent = menu.name;
+                        menuDiv.appendChild(menuSpan);
+        
+                        const menuList = document.createElement('ul');
+                        menuList.className = 'dM_dropdown-menu';
+                        menu.items.forEach(item => {
+                            const li = document.createElement('li');
+                            if (item.disabled) li.className = 'disabled';
+                            const link = document.createElement(item.url ? 'a' : 'span');
+                            link.textContent = item.name;
+                            if (item.url) link.href = item.url;
+                            if (!item.disabled && !item.url) {
+                                link.onclick = () => handleMenuClick(menu.name, item.name);
+                            }
+                            li.appendChild(link);
+                            menuList.appendChild(li);
+                        });
+                        menuDiv.appendChild(menuList);
+                        menuContainer.appendChild(menuDiv);
+                    });
+                }
               }
             } else {
               console.log("Received message that is not a full state update:", data);
@@ -205,8 +282,7 @@ function connect() {
     });
 
     ws.onclose = () => setTimeout(connect, 1000);
-} // connect()connect()
-
+} // connect()
 
 let scriptLoadPromises = {};  // Track script load status
 
@@ -673,3 +749,17 @@ function javaFunctionWithoutParams()
   
 } // javaFunctionWithoutParams()
 
+function updateLoadingProgress(current, total) 
+{
+    const percent = Math.round((current / total) * 100);
+    const message = document.getElementById('message');
+    message.textContent = `Loading page... ${percent}%`;
+    message.className = 'normal-message';
+    
+    if (current >= total) {
+        setTimeout(() => {
+            message.textContent = '';
+            message.className = '';
+        }, 500);
+    }
+}

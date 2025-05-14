@@ -1,4 +1,3 @@
-//----- SPAmanager.h -----
 #ifndef SPA_MANAGER_H
 #define SPA_MANAGER_H
 
@@ -21,6 +20,7 @@ class SPAmanager
     static const size_t MAX_ERROR_PAGE_LEN = 512;
     static const size_t MAX_MESSAGE_LEN = 80;
     static const size_t MAX_VALUE_LEN = 32;
+    static const size_t MAX_PATH_LEN = 64;
 
   public:
     WebServer server;
@@ -28,7 +28,8 @@ class SPAmanager
     
     SPAmanager(uint16_t port = 80);
     void begin(const char* systemPath, Stream* debugOut = nullptr);
-    
+    //bool initializeFilesystem();
+
     //-- Page-related methods
     void addPage(const char* pageName, const char* html);
     void activatePage(const char* pageName);
@@ -83,8 +84,10 @@ class SPAmanager
     void includeJsFile(const std::string &scriptFile);
 
     static const char* MINIMAL_FSMANAGER_PAGE;
+    static const char* MINIMAL_HTML; 
 
   private:
+    static const char* PAGES_DIRECTORY;
     Stream* debugOut;
     uint8_t currentClient;  //-- Store current connected client number
     bool hasConnectedClient;  //-- Track if we have a connected client
@@ -100,6 +103,7 @@ class SPAmanager
     bool isPopup;
     bool showCloseButton;
     static const char* DEFAULT_ERROR_PAGE;
+    bool filesystemAvailable = false;
 
     struct MenuItem 
     {
@@ -149,8 +153,9 @@ class SPAmanager
     {
       char name[MAX_NAME_LEN];
       char title[MAX_NAME_LEN];
-      char content[MAX_CONTENT_LEN];
+      char filePath[MAX_PATH_LEN];  // Store file path instead of content
       bool isVisible;
+      bool isFileStorage;  // Flag to indicate if content is stored in a file
       
       void setName(const char* n) {
           strncpy(name, n, MAX_NAME_LEN-1);
@@ -164,13 +169,10 @@ class SPAmanager
           title[MAX_NAME_LEN-1] = '\0';
       }
       
-      void setContent(const char* c) {
-          strncpy(content, c, MAX_CONTENT_LEN-1);
-          content[MAX_CONTENT_LEN-1] = '\0';
-      }
-      
-      const char* getContent() const {
-          return content;
+      void setFilePath(const char* path) {
+          strncpy(filePath, path, MAX_PATH_LEN-1);
+          filePath[MAX_PATH_LEN-1] = '\0';
+          isFileStorage = true;
       }
     };
 
@@ -193,6 +195,12 @@ class SPAmanager
     void broadcastState();
     void updateClients();
     
+    //-- File operations
+    bool ensurePageDirectory();
+    std::string getPageContent(const Page& page);
+    bool writePageToFile(const char* pageName, const char* html);
+    void streamPageContent(const Page& page);
+
     //-- Utility methods
     void debug(const char* message);
     void error(const char* message);
