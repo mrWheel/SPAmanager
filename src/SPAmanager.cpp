@@ -9,9 +9,9 @@ const char* SPAmanager::PAGES_DIRECTORY = "/SPApages/";
 
 const char* SPAmanager::DEFAULT_ERROR_PAGE = R"HTML(
   <div style="text-align: center; padding: 20px;">
-    <h2>Error: Insufficient Memory</h2>
-    <p>Unable to load this page due to memory constraints.</p>
-    <p>Please free up memory by restarting the device or reducing other functionality.</p>
+    <h2>Error: pages directory not found on the LittleFS</h2>
+    <p>The required directory for storing pages could not be found.</p>
+    <p>Please upload the FileSystem image and make sure there is enough free space.</p>
   </div>
 )HTML";
 
@@ -144,11 +144,11 @@ void SPAmanager::setupWebServer()
     }
 
     // Serve the system files
-    server.serveStatic("/SPAmanager.css", LittleFS, cssFilePath.c_str());
-    debug(("server.serveStatic(/SPAmanager.css, LittleFS, " + cssFilePath + ")").c_str());
-    
     server.serveStatic("/SPAmanager.html", LittleFS, htmlFilePath.c_str());
     debug(("server.serveStatic(/SPAmanager.html, LittleFS, " + htmlFilePath + ")").c_str());
+
+    server.serveStatic("/SPAmanager.css", LittleFS, cssFilePath.c_str());
+    debug(("server.serveStatic(/SPAmanager.css, LittleFS, " + cssFilePath + ")").c_str());
     
     server.serveStatic("/SPAmanager.js", LittleFS, jsFilePath.c_str());
     debug(("server.serveStatic(/SPAmanager.js, LittleFS, " + jsFilePath + ")").c_str());
@@ -156,8 +156,12 @@ void SPAmanager::setupWebServer()
     server.serveStatic("/disconnected.html", LittleFS, disconnectedFilePath.c_str());
     debug(("server.serveStatic(/disconnected.html, LittleFS, " + disconnectedFilePath + ")").c_str());
 
+    //server.on("/", HTTP_GET, [this]() {
+    //    server.send(200, "text/html", generateHTML().c_str());
+    //});
     server.on("/", HTTP_GET, [this]() {
-        server.send(200, "text/html", generateHTML().c_str());
+        server.sendHeader("Location", "/SPAmanager.html", true);
+        server.send(302, "text/plain", "");
     });
     server.begin();
 
