@@ -2,11 +2,16 @@
 
 let isRequestingRssfeedSettings = false;
 let isRequestingParolaSettings = false;
+let isRequestingNeopixelsSettings = false;
 let isRequestingWeerliveSettings = false;
-let isRequestingMediastackSettings = false;
 let isRequestingDeviceSettings = false;
 let renderDebounceTimer = null;
 let lastReceivedData = null;
+let deviceSettings = null;
+let parolaSettings = null;
+let neopixelsSettings = null;
+let weerliveSettings = null;
+let mediasstackSettings = null;
 
 // Array to store input field values
 let LocalMessages = [];
@@ -52,23 +57,59 @@ function renderLocalMessages()
     const cell = document.createElement('td');
     cell.style.padding = '8px';
     
-    // Create a container for the input and buttons
+    // Create a container for the dropdown, input and buttons
     const container = document.createElement('div');
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.width = '100%';
     
-    // Create the input field
+    // Create the key dropdown selector
+    const keySelector = document.createElement('select');
+    keySelector.style.marginRight = '8px';
+    keySelector.dataset.index = index;
+    
+    // Add options A through J
+    for (let charCode = 65; charCode <= 74; charCode++) {
+      const option = document.createElement('option');
+      const keyChar = String.fromCharCode(charCode);
+      option.value = keyChar;
+      option.textContent = keyChar;
+      keySelector.appendChild(option);
+    }
+    
+    // Set the current value or default to 'A'
+    const messageObj = typeof value === 'object' ? value : { key: 'A', content: value };
+    keySelector.value = messageObj.key || 'A';
+    
+    // Add event listener for key changes
+    keySelector.addEventListener('change', (e) => {
+      const index = e.target.dataset.index;
+      // Ensure LocalMessages[index] is an object
+      if (typeof LocalMessages[index] !== 'object') {
+        LocalMessages[index] = { key: 'A', content: LocalMessages[index] || '' };
+      }
+      LocalMessages[index].key = e.target.value;
+    });
+    
+    // Add the key selector to the container
+    container.appendChild(keySelector);
+    
+    // Create the input field for content
     const input = document.createElement('input');
     input.type = 'text';
-    input.value = value;
+    input.value = messageObj.content || messageObj;
     input.style.width = '100ch'; // Set to exactly 100ch wide
     input.style.maxWidth = '100ch';
     input.style.fontFamily = "'Courier New', Courier, monospace"; // Set monospace font
     input.maxLength = 150;
     input.dataset.index = index;
     input.addEventListener('input', (e) => {
-      LocalMessages[e.target.dataset.index] = e.target.value;
+      const index = e.target.dataset.index;
+      // Ensure LocalMessages[index] is an object
+      if (typeof LocalMessages[index] !== 'object') {
+        LocalMessages[index] = { key: 'A', content: '' };
+      }
+      LocalMessages[index].content = e.target.value;
     });
     
     // Add the input to the container
@@ -133,13 +174,29 @@ function renderLocalMessages()
 
 } // renderLocalMessages()
 
+
 // Function to add an empty message below the specified index
 function addMessageBelow(index) 
 {
   console.log(`Adding empty message below index ${index}`);
-  LocalMessages.splice(index + 1, 0, '');
+  
+  // Get the key from the message above
+  let keyToUse = 'A'; // Default to 'A' if we can't determine the key
+  
+  if (index >= 0 && index < LocalMessages.length) {
+    const message = LocalMessages[index];
+    if (typeof message === 'object' && message !== null && message.key) {
+      keyToUse = message.key;
+    }
+  }
+  
+  // Add a new message with the same key and "<empty>" content
+  LocalMessages.splice(index + 1, 0, { key: keyToUse, content: "<empty>" });
   renderLocalMessages();
 }
+
+
+
 
 // Function to move a message up one position
 function moveMessageUp(index) 
@@ -253,7 +310,7 @@ function isEspTicker32Loaded()
         clearTimeout(renderDebounceTimer);
         renderDebounceTimer = setTimeout(() => {
           // Initialize with the data
-          initializeDevSettings(lastReceivedData.data);
+          initializeDeviceSettings(lastReceivedData.data);
         }, 100);
       }
       // Check if this is our custom parolaSettingsData message
@@ -276,6 +333,26 @@ function isEspTicker32Loaded()
           initializeParolaSettings(lastReceivedData.data);
         }, 100);
       }
+      // Check if this is our custom neopixelsSettingsData message
+      else if (data.type === 'custom' && data.action === 'neopixelsSettingsData') {
+        console.log('Received neopixels settings data');
+        
+        // Reset the request flag
+        isRequestingNeopixelsSettings = false;
+        
+        // Store the data and debounce the rendering
+        lastReceivedData = {
+          type: 'neopixelsSettings',
+          data: data.data
+        };
+        
+        // Debounce the rendering
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+          // Initialize with the data
+          initializeNeopixelsSettings(lastReceivedData.data);
+        }, 100);
+      }
       // Check if this is our custom weerliveSettingsData message
       else if (data.type === 'custom' && data.action === 'weerliveSettingsData') {
         console.log('Received weerlive settings data');
@@ -294,26 +371,6 @@ function isEspTicker32Loaded()
         renderDebounceTimer = setTimeout(() => {
           // Initialize with the data
           initializeWeerliveSettings(lastReceivedData.data);
-        }, 100);
-      }
-      else if (data.type === 'custom' && data.action === 'mediastackSettingsData') 
-      {
-        console.log('Received mediastack settings data');
-        
-        // Reset the request flag
-        isRequestingMediastackSettings = false;
-        
-        // Store the data and debounce the rendering
-        lastReceivedData = {
-          type: 'mediastackSettings',
-          data: data.data
-        };
-        
-        // Debounce the rendering
-        clearTimeout(renderDebounceTimer);
-        renderDebounceTimer = setTimeout(() => {
-          // Initialize with the data
-          initializeMediastackSettings(lastReceivedData.data);
         }, 100);
       }
       else if (data.type === 'custom' && data.action === 'rssfeedSettingsData') 
@@ -391,7 +448,15 @@ function isEspTicker32Loaded()
     isRequestingParolaSettings = true;
     requestParolaSettings();
   }
-  
+
+  // Check if the page is ready for neopixels settings (only for Neopixels Settings page)
+  if (pageTitle.includes("Neopixels Settings") && isPageReadyForNeopixelsSettings() && !isRequestingNeopixelsSettings) 
+    {
+      console.log("Page is ready for neopixels settings, requesting data from server");
+      isRequestingNeopixelsSettings = true;
+      requestNeopixelsSettings();
+    }
+    
   // Check if the page is ready for weerlive settings (only for Weerlive Settings page)
   if (pageTitle.includes("Weerlive Settings") && isPageReadyForWeerliveSettings() && !isRequestingWeerliveSettings) 
   {
@@ -399,14 +464,7 @@ function isEspTicker32Loaded()
     isRequestingWeerliveSettings = true;
     requestWeerliveSettings();
   }
-  // Check if the page is ready for mediastack settings (only for Mediastack Settings page)
-  if (pageTitle.includes("Mediastack Settings") && isPageReadyForMediastackSettings() && !isRequestingMediastackSettings) 
-  {
-    console.log("Page is ready for mediastack settings, requesting data from server");
-    isRequestingMediastackSettings = true;
-    requestMediastackSettings();
-  }  
-  // Check if the page is ready for mediastack settings (only for RSSfeed Settings page)
+  // Check if the page is ready for rssfeed settings (only for RSSfeed Settings page)
   if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings() && !isRequestingRssfeedSettings) 
     {
       console.log("Page is ready for rssfeed settings, requesting data from server");
@@ -575,148 +633,6 @@ function requestWeerliveSettings()
 
 } // requestWeerliveSettings()
 
-//===========[Mediastack]==================================================================
-
-// Function to check if the page is ready for mediastack settings
-function isPageReadyForMediastackSettings() 
-{
-  // Check if the settingsTableBody element exists
-  const tableBody = document.getElementById('settingsTableBody');
-  return !!tableBody;
-}
-
-// Function to initialize the mediastack settings from JSON
-function initializeMediastackSettings(jsonString) 
-{
-  console.log('initializeMediastackSettings called with:', jsonString);
-  try {
-    mediastackSettings = JSON.parse(jsonString) || { fields: [] };
-    renderMediastackSettings();
-  } catch (e) {
-    console.error('Error parsing JSON:', e);
-    mediastackSettings = { fields: [] };
-  }
-}
-
-// Function to render the mediastack settings in the table
-function renderMediastackSettings() 
-{
-  console.log('renderMediastackSettings called');
-  
-  // Check if the page is ready
-  if (!isPageReadyForMediastackSettings()) {
-    console.error('Mediastack settings table body not found in DOM, page not ready yet');
-    return;
-  }
-  
-  const tableBody = document.getElementById('settingsTableBody');
-  tableBody.innerHTML = '';
-  
-  if (mediastackSettings && mediastackSettings.fields) {
-    mediastackSettings.fields.forEach((field) => {
-      const row = document.createElement('tr');
-      
-      // Field prompt cell
-      const promptCell = document.createElement('td');
-      promptCell.style.padding = '8px';
-      promptCell.style.textAlign = 'right'; 
-      promptCell.textContent = field.fieldPrompt;
-      
-      // Field value cell
-      const valueCell = document.createElement('td');
-      valueCell.style.padding = '8px';
-      
-      // Create input element based on field type
-      const input = document.createElement('input');
-      if (field.fieldType === 's') {
-        // String input
-        input.type = 'text';
-        input.value = field.fieldValue;
-        input.maxLength = field.fieldLen;
-      } else if (field.fieldType === 'n') {
-        // Numeric input
-        input.type = 'number';
-        input.value = field.fieldValue;
-        input.min = field.fieldMin;
-        input.max = field.fieldMax;
-        input.step = field.fieldStep;
-        
-        input.dataset.fieldName = field.fieldName;
-        input.dataset.fieldType = field.fieldType;
-        input.addEventListener('input', updateMediastackSettings);
-
-        // Create a container for the input and range text
-        const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        
-        // Add the input to the container
-        container.appendChild(input);
-        
-        // Add the range text
-        const rangeText = document.createElement('span');
-        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
-        rangeText.style.marginLeft = '8px';
-        rangeText.style.fontSize = '0.9em';
-        rangeText.style.color = '#666';
-        container.appendChild(rangeText);
-        
-        // Add the container to the cell instead of just the input
-        valueCell.appendChild(container);
-        row.appendChild(promptCell);
-        row.appendChild(valueCell);
-        tableBody.appendChild(row);
-        
-        // Skip the rest of this iteration since we've already added everything
-        return;
-      }
-      
-      input.style.width = '100%';
-      input.dataset.fieldName = field.fieldName;
-      input.dataset.fieldType = field.fieldType;
-      input.addEventListener('input', updateMediastackSettings);
-      
-      valueCell.appendChild(input);
-      row.appendChild(promptCell);
-      row.appendChild(valueCell);
-      tableBody.appendChild(row);
-    });
-  }
-  
-  // Update the settings name
-  const settingsNameElement = document.getElementById('settingsName');
-  if (settingsNameElement) {
-    settingsNameElement.textContent = 'Mediastack Settings';
-  }
-}
-
-// Function to update a mediastack setting
-function updateMediastackSettings(event) 
-{
-  const input = event.target || this;
-  const fieldName = input.dataset.fieldName;
-  const fieldType = input.dataset.fieldType;
-  const value = fieldType === 'n' ? parseFloat(input.value) : input.value;
-  
-  console.log(`Updating mediastack setting: ${fieldName} = ${value}`);
-  
-  // Find and update the field in the mediastackSettings object
-  if (mediastackSettings && mediastackSettings.fields) {
-    const field = mediastackSettings.fields.find(f => f.fieldName === fieldName);
-    if (field) {
-      field.fieldValue = value;
-    }
-  }
-}
-
-// Function to request mediastack settings data from the server
-function requestMediastackSettings() 
-{
-  console.log("Requesting mediastack settings data from server");
-  window.ws.send(JSON.stringify({
-    type: 'requestMediastackSettings'
-  }));
-}
 
 //===========[Rssfeed]==================================================================
 
@@ -884,7 +800,7 @@ function initializeParolaSettings(jsonString)
     parolaSettings = { fields: [] };
   }
 
-} // initializeparolaSettings()
+} // initializeParolaSettings()
 
 
 // Function to render the parola settings in the table
@@ -1011,11 +927,196 @@ function requestParolaSettings()
 
 } // requestParolaSettings()
 
-// Device Settings variables and functions
-let deviceSettings = null;
-let parolaSettings = null;
-let weerliveSettings = null;
-let mediasstackSettings = null;
+
+//===========[Neopixels]==================================================================
+// Function to check if the page is ready for neopixels settings
+function isPageReadyForNeopixelsSettings() 
+{
+  // Check if the settingsTableBody element exists
+  const tableBody = document.getElementById('settingsTableBody');
+  return !!tableBody;
+
+} // isPageReadyForNeopixelsSettings()
+
+// Function to initialize the neopixels settings from JSON
+function initializeNeopixelsSettings(jsonString) 
+{
+  console.log('initializeNeopixelsSettings called with:', jsonString);
+  try {
+    neopixelsSettings = JSON.parse(jsonString) || { fields: [] };
+    renderNeopixelsSettings();
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    neopixelsSettings = { fields: [] };
+  }
+
+} // initializeNeopixelsSettings()
+
+
+// Function to render the neopixels settings in the table
+function renderNeopixelsSettings() 
+{
+  console.log('renderNeopixelsSettings called');
+  
+  // Check if the page is ready
+  if (!isPageReadyForNeopixelsSettings()) {
+    console.error('neopixels settings table body not found in DOM, page not ready yet');
+    return;
+  }
+  
+  const tableBody = document.getElementById('settingsTableBody');
+  
+  // Clear the table body
+  tableBody.innerHTML = '';
+  
+  if (neopixelsSettings && neopixelsSettings.fields) {
+    neopixelsSettings.fields.forEach((field) => {
+      const row = document.createElement('tr');
+      
+      // Field prompt cell
+      const promptCell = document.createElement('td');
+      promptCell.style.padding = '8px';
+      promptCell.style.textAlign = 'right'; 
+      promptCell.textContent = field.fieldPrompt;
+      
+      // Field value cell
+      const valueCell = document.createElement('td');
+      valueCell.style.padding = '8px';
+      
+      // Create input element based on field type
+      if (field.fieldType === 's') {
+        // String input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = field.fieldValue;
+        input.maxLength = field.fieldLen;
+        input.style.width = '100%';
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateNeopixelsSettings);
+        
+        valueCell.appendChild(input);
+
+      } else if (field.fieldType === 'n') {
+        // Numeric input
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = field.fieldValue;
+        input.min = field.fieldMin;
+        input.max = field.fieldMax;
+        input.step = field.fieldStep;
+        
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateNeopixelsSettings);
+
+        // Create a container for the input and range text
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Add the input to the container
+        container.appendChild(input);
+        
+        // Add the range text
+        const rangeText = document.createElement('span');
+        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
+        rangeText.style.marginLeft = '8px';
+        rangeText.style.fontSize = '0.9em';
+        rangeText.style.color = '#666';
+        container.appendChild(rangeText);
+        
+        // Add the container to the cell
+        valueCell.appendChild(container);
+
+      } else if (field.fieldType === 'b') {
+        // Boolean input (checkbox)
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Create checkbox input
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = field.fieldValue;
+        console.log("Checkbox value:", field.fieldValue);
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('change', updateNeopixelsSettings);
+        
+        // Add the checkbox to the container
+        container.appendChild(input);
+        
+        // Add a label to explain the boolean values
+        const label = document.createElement('span');
+        label.textContent = field.fieldValue ? ' true' : ' false';
+        label.style.marginLeft = '8px';
+        container.appendChild(label);
+        
+        // Update the label when the checkbox changes
+        input.addEventListener('change', function() {
+          label.textContent = this.checked ? ' true' : ' false';
+        });
+        
+        // Add the container to the cell
+        valueCell.appendChild(container);
+      }
+      
+      row.appendChild(promptCell);
+      row.appendChild(valueCell);
+      tableBody.appendChild(row);
+    });
+  }
+  
+  // Update the settings name
+  const settingsNameElement = document.getElementById('settingsName');
+  if (settingsNameElement) {
+    settingsNameElement.textContent = 'Neopixels Settings';
+  }
+} // renderNeopixelsSettings()
+
+
+// Function to update a neopixels setting
+function updateNeopixelsSettings(event) 
+{
+  const input = event.target || this;
+  const fieldName = input.dataset.fieldName;
+  const fieldType = input.dataset.fieldType;
+  
+  // Use different properties based on field type
+  let value;
+  if (fieldType === 'n') {
+    value = parseFloat(input.value);
+  } else if (fieldType === 'b') {
+    value = input.checked; // Use checked property for boolean fields
+    console.log("Checkbox value:", value);
+  } else {
+    value = input.value;
+  }
+  
+  console.log(`Updating neopixels setting: ${fieldName} = ${value}`);
+  
+  // Find and update the field in the neopixelsSettings object
+  if (neopixelsSettings && neopixelsSettings.fields) {
+    const field = neopixelsSettings.fields.find(f => f.fieldName === fieldName);
+    if (field) {
+      field.fieldValue = value;
+    }
+  }
+} // updateNeopixelsSettings()
+
+
+// Function to request neopixels settings data from the server
+function requestNeopixelsSettings() 
+{
+  console.log("Requesting neopixels settings data from server");
+  window.ws.send(JSON.stringify({
+    type: 'requestNeopixelsSettings'
+  }));
+
+} // requestNeopixelsSettings()
+
+
 
 //===========[Device Settings]=========================================================
 // Function to check if the page is ready for device settings
@@ -1027,23 +1128,23 @@ function isPageReadyForDeviceSettings()
 } // isPageReadyForDeviceSettings()
 
 // Function to initialize the device settings from JSON
-function initializeDevSettings(jsonString) 
+function initializeDeviceSettings(jsonString) 
 {
-  console.log('initializeDevSettings called with:', jsonString);
+  console.log('initializeDeviceSettings called with:', jsonString);
   try {
     deviceSettings = JSON.parse(jsonString) || { fields: [] };
-    renderDevSettings();
+    renderDeviceSettings();
   } catch (e) {
     console.error('Error parsing JSON:', e);
     deviceSettings = { fields: [] };
   }
 
-} //  initializeDevSettings()
+} //  initializeDeviceSettings()
 
 // Function to render the device settings in the table
-function renderDevSettings() 
+function renderDeviceSettings() 
 {
-  console.log('renderDevSettings called');
+  console.log('renderDeviceSettings called');
   
   // Check if the page is ready
   if (!isPageReadyForDeviceSettings()) {
@@ -1069,23 +1170,31 @@ function renderDevSettings()
       valueCell.style.padding = '8px';
       
       // Create input element based on field type
-      const input = document.createElement('input');
       if (field.fieldType === 's') {
         // String input
+        const input = document.createElement('input');
         input.type = 'text';
         input.value = field.fieldValue;
         input.maxLength = field.fieldLen;
+        input.style.width = '100%';
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateDeviceSetting);
+        
+        valueCell.appendChild(input);
+
       } else if (field.fieldType === 'n') {
         // Numeric input
+        const input = document.createElement('input');
         input.type = 'number';
         input.value = field.fieldValue;
         input.min = field.fieldMin;
         input.max = field.fieldMax;
         input.step = field.fieldStep;
-
-        input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
-        input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
-        input.addEventListener('input', updateDevSetting);  // ADD THIS LINE
+        
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateDeviceSetting);
 
         // Create a container for the input and range text
         const container = document.createElement('div');
@@ -1103,22 +1212,42 @@ function renderDevSettings()
         rangeText.style.color = '#666';
         container.appendChild(rangeText);
         
-        // Add the container to the cell instead of just the input
+        // Add the container to the cell
         valueCell.appendChild(container);
-        row.appendChild(promptCell);
-        row.appendChild(valueCell);
-        tableBody.appendChild(row);
+
+      } else if (field.fieldType === 'b') {
+        // Boolean input (checkbox)
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
         
-        // Skip the rest of this iteration since we've already added everything
-        return;
+        // Create checkbox input
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = field.fieldValue;
+        console.log("Checkbox value:", field.fieldValue);
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('change', updateDeviceSetting);
+        
+        // Add the checkbox to the container
+        container.appendChild(input);
+        
+        // Add a label to explain the boolean values
+        const label = document.createElement('span');
+        label.textContent = field.fieldValue ? ' true' : ' false';
+        label.style.marginLeft = '8px';
+        container.appendChild(label);
+        
+        // Update the label when the checkbox changes
+        input.addEventListener('change', function() {
+          label.textContent = this.checked ? ' true' : ' false';
+        });
+        
+        // Add the container to the cell
+        valueCell.appendChild(container);
       }
       
-      input.style.width = '100%';
-      input.dataset.fieldName = field.fieldName;
-      input.dataset.fieldType = field.fieldType;
-      input.addEventListener('input', updateDevSetting);
-      
-      valueCell.appendChild(input);
       row.appendChild(promptCell);
       row.appendChild(valueCell);
       tableBody.appendChild(row);
@@ -1129,16 +1258,25 @@ function renderDevSettings()
   if (settingsNameElement) {
     settingsNameElement.textContent = 'Device Settings';
   }
-
-} // renderDevSettings()
+} // renderDeviceSettings()
 
 // Function to update a device setting
-function updateDevSetting(event) 
+function updateDeviceSetting(event) 
 {
   const input = event.target || this;
   const fieldName = input.dataset.fieldName;
   const fieldType = input.dataset.fieldType;
-  const value = fieldType === 'n' ? parseFloat(input.value) : input.value;
+  
+  // Use different properties based on field type
+  let value;
+  if (fieldType === 'n') {
+    value = parseFloat(input.value);
+  } else if (fieldType === 'b') {
+    value = input.checked; // Use checked property for boolean fields
+    console.log("Checkbox value:", value);
+  } else {
+    value = input.value;
+  }
   
   console.log(`Updating device setting: ${fieldName} = ${value}`);
   
@@ -1149,15 +1287,14 @@ function updateDevSetting(event)
       field.fieldValue = value;
     }
   }
-
-} //  updateDevSetting()
+} //  updateDeviceSetting()
 
 // Function to request device settings data from the server
 function requestDeviceSettings() 
 {
   console.log("Requesting device settings data from server");
   window.ws.send(JSON.stringify({
-    type: 'requestDevSettings'
+    type: 'requestDeviceSettings'
   }));
 } //  requestDeviceSettings()
 
@@ -1175,20 +1312,20 @@ function saveSettings()
   
   if (settingsName === 'Device Settings') {
     settingsObj = deviceSettings;
-    processType = 'saveDevSettings';
+    processType = 'saveDeviceSettings';
     dataKey = 'deviceSettingsData';
   } else if (settingsName === 'Parola Settings') {
     settingsObj = parolaSettings;
     processType = 'saveParolaSettings';
     dataKey = 'parolaSettingsData';
+  } else if (settingsName === 'Neopixels Settings') {
+    settingsObj = neopixelsSettings;
+    processType = 'saveNeopixelsSettings';
+    dataKey = 'neopixelsSettingsData';
   } else if (settingsName === 'Weerlive Settings') {
     settingsObj = weerliveSettings;
     processType = 'saveWeerliveSettings';
     dataKey = 'weerliveSettingsData';
-  } else if (settingsName === 'Mediastack Settings') {
-    settingsObj = mediastackSettings;
-    processType = 'saveMediastackSettings';
-    dataKey = 'mediastackSettingsData';
   } else if (settingsName === 'RSSfeed Settings') {
     settingsObj = rssfeedSettings;
     processType = 'saveRssfeedSettings';
@@ -1201,10 +1338,19 @@ function saveSettings()
   if (window.ws && window.ws.readyState === WebSocket.OPEN && settingsObj) {
     // Create a copy of the settings object with the correct structure
     const formattedSettings = {
-      fields: settingsObj.fields.map(field => ({
-        fieldName: field.fieldName,
-        value: field.fieldValue  // Change fieldValue to value to match what C++ expects
-      }))
+      fields: settingsObj.fields.map(field => {
+        let value = field.fieldValue;
+        
+        // Convert boolean values to "on" or "off" strings
+        if (field.fieldType === 'b') {
+          value = value ? "true" : "false";
+        }
+        
+        return {
+          fieldName: field.fieldName,
+          value: value
+        };
+      })
     };
     
     const inputValues = {};
@@ -1218,6 +1364,7 @@ function saveSettings()
   } else {
     console.error('WebSocket is not connected or settings object is null');
   }
+
 } // saveSettings()
 
 // Variable to track if a message is currently being displayed
@@ -1457,7 +1604,7 @@ function isEspTicker32Loaded()
         console.log('Received device settings data');
         
         // Initialize with the data
-        initializeDevSettings(data.data);
+        initializeDeviceSettings(data.data);
       }
       // Check if this is our custom parolaSettingsData message
       else if (data.type === 'custom' && data.action === 'parolaSettingsData') {
@@ -1465,16 +1612,17 @@ function isEspTicker32Loaded()
         // Initialize with the data
         initializeParolaSettings(data.data);
       }
+      // Check if this is our custom neopixelsSettingsData message
+      else if (data.type === 'custom' && data.action === 'neopixelsSettingsData') {
+        console.log('Received neopixels settings data');
+        // Initialize with the data
+        initializeNeopixelsSettings(data.data);
+      }
       // Check if this is our custom weerliveSettingsData message
       else if (data.type === 'custom' && data.action === 'weerliveSettingsData') {
         console.log('Received weerlive settings data');
         // Initialize with the data
         initializeWeerliveSettings(data.data);
-      }
-      else if (data.type === 'custom' && data.action === 'mediastackSettingsData') {
-        console.log('Received mediastack settings data');
-        // Initialize with the data
-        initializeMediastackSettings(data.data);
       }
       else if (data.type === 'custom' && data.action === 'rssfeedSettingsData') {
         console.log('Received rssfeed settings data');
@@ -1534,20 +1682,21 @@ function isEspTicker32Loaded()
     console.log("Page is ready for parola settings, requesting data from server");
     requestParolaSettings();
   }
-  
+
+  // Check if the page is ready for parola settings (only for Neopixels Settings page)
+  if (pageTitle.includes("Neopixels Settings") && isPageReadyForNeopixelsSettings()) 
+    {
+      console.log("Page is ready for neopixels settings, requesting data from server");
+      requestNeopixelsSettings();
+    }
+    
   // Check if the page is ready for weerlive settings (only for Weerlive Settings page)
   if (pageTitle.includes("Weerlive Settings") && isPageReadyForWeerliveSettings()) 
   {
     console.log("Page is ready for weerlive settings, requesting data from server");
     requestWeerliveSettings();
   }
-  // Check if the page is ready for mediastack settings (only for Mediastack Settings page)
-  if (pageTitle.includes("Mediastack Settings") && isPageReadyForMediastackSettings()) 
-  {
-    console.log("Page is ready for mediastack settings, requesting data from server");
-    requestMediastackSettings();
-  }  
-  // Check if the page is ready for mediastack settings (only for RSSfeed Settings page)
+  // Check if the page is ready for rssfeed settings (only for RSSfeed Settings page)
   if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings()) 
     {
       console.log("Page is ready for rssfeed settings, requesting data from server");

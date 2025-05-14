@@ -5,6 +5,8 @@
 #include <sstream>
 #include <WString.h>
 
+const char* SPAmanager::PAGES_DIRECTORY = "/SPApages/";
+
 const char* SPAmanager::DEFAULT_ERROR_PAGE = R"HTML(
   <div style="text-align: center; padding: 20px;">
     <h2>Error: Insufficient Memory</h2>
@@ -37,9 +39,11 @@ SPAmanager::SPAmanager(uint16_t port)
     , pages()
     , activePage(nullptr)
     , servedFiles()  // Initialize empty set
-    {
-      debug(("SPAmanager::  constructor called with port: " + std::to_string(port)).c_str());
-    }
+{
+  debug(("SPAmanager::  constructor called with port: " + std::to_string(port)).c_str());
+}
+
+
 
 void SPAmanager::begin(const char* systemPath, Stream* debugOut) 
 {
@@ -51,17 +55,22 @@ void SPAmanager::begin(const char* systemPath, Stream* debugOut)
       path = "/" + path;  // Add '/' at the beginning if not already present
     }
 
-  if (path != "/" && path.back() == '/') {
+    if (path != "/" && path.back() == '/') {
       path.pop_back();  // Remove trailing '/' if it's not the root '/'
-  }
+    }
 
-
-    // Store in rootSystemPath (assuming rootSystemPath is std::string)
+    // Store in rootSystemPath
     rootSystemPath = path;
 
     this->debugOut = debugOut;
 
     debug(("SPAmanager::begin: begin(): called with rootSystemPath: [" + rootSystemPath + "]").c_str());
+    
+    // Initialize the filesystem with robust handling
+    //if (!initializeFilesystem()) {
+    //    error("Failed to initialize filesystem. Some features may not work correctly.");
+    //}
+    
     setupWebServer();
 
 } //  begin()
@@ -74,26 +83,86 @@ void SPAmanager::setupWebServer()
         handleWebSocketEvent(num, type, payload, length);
     });
 
-    server.serveStatic("/pages/", LittleFS, "/pages/");
+    // Serve the pages directory
+    std::string pagesDir = PAGES_DIRECTORY;
+    if (pagesDir[0] != '/') {
+        pagesDir = "/" + pagesDir; // Ensure it starts with a slash
+    }
+    server.serveStatic(PAGES_DIRECTORY, LittleFS, pagesDir.c_str());
+    std::string msg = "server.serveStatic(" + std::string(PAGES_DIRECTORY) + ", LittleFS, " + pagesDir + ")";
+    debug(msg.c_str());
 
-    std::string filePath = std::string(rootSystemPath) + "/SPAmanager.css";
-    server.serveStatic("/SPAmanager.css", LittleFS, filePath.c_str());
-    debug(("server.serveStatic(/SPAmanager.css, LittleFS, " + filePath +")").c_str());
-    filePath = std::string(rootSystemPath) + "/SPAmanager.html";
-    server.serveStatic("/SPAmanager.html", LittleFS, filePath.c_str());
-    debug(("server.serveStatic(/SPAmanager.html, LittleFS, " + filePath +")").c_str());
-    filePath = std::string(rootSystemPath) + "/SPAmanager.js";
-    server.serveStatic("/SPAmanager.js", LittleFS, filePath.c_str());
-    debug(("server.serveStatic(/SPAmanager.js, LittleFS, " + filePath +")").c_str());
-    filePath = std::string(rootSystemPath) + "/disconnected.html";
-    server.serveStatic("/disconnected.html", LittleFS, filePath.c_str());
-    debug(("server.serveStatic(/disconnected.html, LittleFS, " + filePath).c_str());
+    // Serve system files
+    std::string sysPath = rootSystemPath;
+    if (sysPath[0] != '/') {
+        sysPath = "/" + sysPath; // Ensure it starts with a slash
+    }
+    // Debug the system path
+    debug(("System path: [" + sysPath + "]").c_str());
+    
+    // Check if the system directory exists
+    if (!LittleFS.exists(sysPath.c_str())) {
+        error(("System directory does not exist: " + sysPath).c_str());
+        
+        // Try to list all directories in the root to help debug
+        File root = LittleFS.open("/", "r");
+        if (root && root.isDirectory()) {
+            File file = root.openNextFile();
+            while (file) {
+                debug(("Found in root: " + std::string(file.name())).c_str());
+                file = root.openNextFile();
+            }
+        }
+    } else {
+        debug(("System directory exists: " + sysPath).c_str());
+    }
+
+    // Serve each system file individually
+    std::string cssFilePath = sysPath + "/SPAmanager.css";
+    std::string htmlFilePath = sysPath + "/SPAmanager.html";
+    std::string jsFilePath = sysPath + "/SPAmanager.js";
+    std::string disconnectedFilePath = sysPath + "/disconnected.html";
+
+    // Debug each file path
+    debug(("CSS file path: [" + cssFilePath + "]").c_str());
+    debug(("HTML file path: [" + htmlFilePath + "]").c_str());
+    debug(("JS file path: [" + jsFilePath + "]").c_str());
+    debug(("Disconnected file path: [" + disconnectedFilePath + "]").c_str());
+    
+    // Check if each file exists
+    if (!LittleFS.exists(cssFilePath.c_str())) {
+        error(("CSS file does not exist: " + cssFilePath).c_str());
+    }
+    if (!LittleFS.exists(htmlFilePath.c_str())) {
+        error(("HTML file does not exist: " + htmlFilePath).c_str());
+    }
+    if (!LittleFS.exists(jsFilePath.c_str())) {
+        error(("JS file does not exist: " + jsFilePath).c_str());
+    }
+    if (!LittleFS.exists(disconnectedFilePath.c_str())) {
+        error(("Disconnected file does not exist: " + disconnectedFilePath).c_str());
+    }
+
+    // Serve the system files
+    server.serveStatic("/SPAmanager.css", LittleFS, cssFilePath.c_str());
+    debug(("server.serveStatic(/SPAmanager.css, LittleFS, " + cssFilePath + ")").c_str());
+    
+    server.serveStatic("/SPAmanager.html", LittleFS, htmlFilePath.c_str());
+    debug(("server.serveStatic(/SPAmanager.html, LittleFS, " + htmlFilePath + ")").c_str());
+    
+    server.serveStatic("/SPAmanager.js", LittleFS, jsFilePath.c_str());
+    debug(("server.serveStatic(/SPAmanager.js, LittleFS, " + jsFilePath + ")").c_str());
+    
+    server.serveStatic("/disconnected.html", LittleFS, disconnectedFilePath.c_str());
+    debug(("server.serveStatic(/disconnected.html, LittleFS, " + disconnectedFilePath + ")").c_str());
 
     server.on("/", HTTP_GET, [this]() {
         server.send(200, "text/html", generateHTML().c_str());
     });
     server.begin();
-}
+
+  } // setupWebServer()
+
 
 void SPAmanager::setLocalEventHandler(std::function<void(uint8_t, WStype_t, uint8_t*, size_t)> callback)
 {
@@ -172,12 +241,11 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             return;
         }
         
-        DeserializationError error = deserializeJson(doc, message);
+        DeserializationError jsonError = deserializeJson(doc, message);
         
-        if (error)
+        if (jsonError)
         {
-
-            debug(("JSON deserialization failed: " + std::string(error.c_str())).c_str());
+            debug(("JSON deserialization failed: " + std::string(jsonError.c_str())).c_str());
             debug(("Received message: " + message + " [" + std::to_string(message.length()) + " bytes]").c_str());
             return;
         }
@@ -214,7 +282,18 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
             {
                 for (auto& page : pages) {
                     if (strcmp(page.name, activePage->name) == 0) {
-                        std::string content = page.getContent();
+                        if (!page.isFileStorage) {
+                            debug("Page is not using file storage, skipping input change");
+                            return;
+                        }
+                        
+                        // Read the current content from file
+                        std::string content = getPageContent(page);
+                        if (content.empty() || content == DEFAULT_ERROR_PAGE) {
+                            debug("Failed to read page content or using error page");
+                            return;
+                        }
+                        
                         std::string idStr1 = std::string("id='") + placeholder + "'";
                         std::string idStr2 = std::string("id=\"") + placeholder + "\"";
                         size_t pos = content.find(idStr1);
@@ -246,7 +325,15 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
                                     // No value attribute, insert before closing bracket
                                     content.insert(closingBracket, " value=\"" + std::string(value) + "\"");
                                 }
-                                page.setContent(content.c_str());
+                                
+                                // Write the updated content back to the file
+                                File pageFile = LittleFS.open(page.filePath, "w");
+                                if (pageFile) {
+                                    pageFile.print(content.c_str());
+                                    pageFile.close();
+                                } else {
+                                    this->error(("Failed to open page file for writing: " + std::string(page.filePath)).c_str());
+                                }
                             }
                         }
                         break;
@@ -447,54 +534,52 @@ void SPAmanager::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payl
     }
     
     // If no event was handled and we have a local events callback, call it
-  //if (!eventHandled && localEventsCallback) 
+    //if (!eventHandled && localEventsCallback) 
     if (localEventsCallback) 
     {
       localEventsCallback(num, type, payload, length);
     }
-
 } // handleWebSocketEvent()
 
 void SPAmanager::broadcastState() 
 {
+    // Create a JSON document without the page content
     const size_t capacity = JSON_ARRAY_SIZE(5) +
                            JSON_ARRAY_SIZE(10) +
                            10 * JSON_OBJECT_SIZE(3) +
                            JSON_OBJECT_SIZE(10) +
-                           1024;
+                           256; // Reduced size since we're not including page content
                            
     DynamicJsonDocument doc(capacity);
-    if (doc.capacity() == 0)
-    {
+    if (doc.capacity() == 0) {
         debug("Failed to allocate JSON buffer for broadcast state");
         return;
     }
     
-    doc["body"] = activePage ? activePage->getContent() : "";
+    // Set metadata but not the content
     doc["pageName"] = activePage ? activePage->name : "";
     doc["isVisible"] = activePage ? true : false;
+    doc["hasContent"] = activePage && activePage->isFileStorage;
     
+    // Other state information
     doc["message"] = currentMessage;
     doc["isError"] = isError;
     doc["messageDuration"] = messageEndTime > 0 ? (messageEndTime - millis()) : 0;
     doc["isPopup"] = isPopup;
     doc["showCloseButton"] = showCloseButton;
     
+    // Menu information
     JsonArray menuArray = doc.createNestedArray("menus");
-    for (const auto& menu : menus) 
-    {
-        if (strcmp(menu.pageName, activePage ? activePage->name : "") == 0) 
-        {
+    for (const auto& menu : menus) {
+        if (strcmp(menu.pageName, activePage ? activePage->name : "") == 0) {
             JsonObject menuObj = menuArray.createNestedObject();
             menuObj["name"] = menu.name;
             JsonArray itemArray = menuObj.createNestedArray("items");
             
-            for (const auto& item : menu.items)
-            {
+            for (const auto& item : menu.items) {
                 JsonObject itemObj = itemArray.createNestedObject();
                 itemObj["name"] = item.name;
-                if (item.hasUrl()) 
-                {
+                if (item.hasUrl()) {
                     itemObj["url"] = item.url;
                 }
                 itemObj["disabled"] = item.disabled;
@@ -505,58 +590,294 @@ void SPAmanager::broadcastState()
     std::string output;
     serializeJson(doc, output);
     
-    if (!output.empty()) 
-    {
+    if (!output.empty()) {
         ws.broadcastTXT(output.c_str(), output.length());
-    } 
-    else 
-    {
+        
+        // If there's an active page with content, stream it separately
+        if (activePage && activePage->isFileStorage) {
+            streamPageContent(*activePage);
+        } else if (activePage) {
+            // Send error page if there's no file storage
+            const size_t errorCapacity = JSON_OBJECT_SIZE(3) + strlen(DEFAULT_ERROR_PAGE) + 50;
+            DynamicJsonDocument errorDoc(errorCapacity);
+            errorDoc["type"] = "pageContent";
+            errorDoc["content"] = DEFAULT_ERROR_PAGE;
+            
+            std::string errorOutput;
+            serializeJson(errorDoc, errorOutput);
+            
+            if (!errorOutput.empty()) {
+                ws.broadcastTXT(errorOutput.c_str(), errorOutput.length());
+            }
+        }
+    } else {
         debug("Failed to serialize JSON for broadcast state");
     }
-}
+} // broadcastState()
 
-void SPAmanager::addPage(const char* pageName, const char* html) 
+
+// method to stream page content in chunks
+void SPAmanager::streamPageContent(const Page& page) 
 {
+    // Remove leading slash for LittleFS
+    std::string filePath = page.filePath;
+    if (!filePath.empty() && filePath[0] != '/') {
+        filePath = "/" + filePath;
+    }
+    
+    debug(("streamPageContent(): Streaming page content from file: " + filePath).c_str());
+    File pageFile = LittleFS.open(filePath.c_str(), "r");
+    if (!pageFile) {
+        error(("Failed to open page file: " + filePath).c_str());
+        
+        // Send error page
+        const size_t errorCapacity = JSON_OBJECT_SIZE(3) + strlen(DEFAULT_ERROR_PAGE) + 50;
+        DynamicJsonDocument errorDoc(errorCapacity);
+        errorDoc["type"] = "pageContent";
+        errorDoc["content"] = DEFAULT_ERROR_PAGE;
+        
+        std::string errorOutput;
+        serializeJson(errorDoc, errorOutput);
+        
+        if (!errorOutput.empty()) {
+            ws.broadcastTXT(errorOutput.c_str(), errorOutput.length());
+        }
+        return;
+    }
+    
+    // Stream content in chunks
+    const size_t chunkSize = 1024;
+    char buffer[chunkSize];
+    int chunkIndex = 0;
+    int totalChunks = (pageFile.size() + chunkSize - 1) / chunkSize; // Ceiling division
+    
+    while (pageFile.available()) {
+        size_t bytesRead = pageFile.readBytes(buffer, chunkSize - 1);
+        buffer[bytesRead] = '\0';
+        
+        // Create a JSON document for this chunk
+        const size_t chunkCapacity = JSON_OBJECT_SIZE(5) + bytesRead + 50;
+        DynamicJsonDocument chunkDoc(chunkCapacity);
+        chunkDoc["type"] = "pageChunk";
+        chunkDoc["content"] = buffer;
+        chunkDoc["chunkIndex"] = chunkIndex;
+        chunkDoc["totalChunks"] = totalChunks;
+        chunkDoc["final"] = !pageFile.available();
+        
+        std::string chunkOutput;
+        serializeJson(chunkDoc, chunkOutput);
+        
+        if (!chunkOutput.empty()) {
+            ws.broadcastTXT(chunkOutput.c_str(), chunkOutput.length());
+        }
+        
+        chunkIndex++;
+        yield(); // Allow other tasks to run
+    }
+    
+    pageFile.close();
+} // streamPageContent()
+
+
+// ensure the pages directory exists
+bool SPAmanager::ensurePageDirectory() 
+{
+    std::string pagesDir = PAGES_DIRECTORY;
+    if (pagesDir[0] != '/') {
+        pagesDir = "/"+pagesDir; // Add leading slash for LittleFS
+    }
+    // Remove trailing slash if present (but not if it's just "/")
+    if (pagesDir.length() > 1 && pagesDir.back() == '/') {
+        pagesDir.pop_back();
+    }
+    if (!LittleFS.exists(pagesDir.c_str())) {
+        debug(("ensurePageDirectory(): Creating [" + pagesDir + "] directory").c_str());
+        if (!LittleFS.mkdir(pagesDir.c_str())) {
+            error(("ensurePageDirectory(): Failed to create [" + pagesDir + "] directory").c_str());
+            return false;
+        }
+    }
+    return true;
+
+} //  ensurePageDirectory()
+
+
+// method to get page content from file
+std::string SPAmanager::getPageContent(const Page& page) 
+{
+    if (!page.isFileStorage) {
+        // For backward compatibility or error pages
+        return "";
+    }
+    
+    // Remove leading slash for LittleFS
+    std::string filePath = page.filePath;
+    if (!filePath.empty() && filePath[0] != '/') {
+        filePath = "/"+filePath;
+    }
+    
+    debug(("Reading page content from file: " + filePath).c_str());
+    
+    // Check if file exists
+    if (!LittleFS.exists(filePath.c_str())) {
+        error(("Page file does not exist: " + filePath).c_str());
+        return DEFAULT_ERROR_PAGE;
+    }
+    
+    File pageFile = LittleFS.open(filePath.c_str(), "r");
+    if (!pageFile) {
+        error(("Failed to open page file: " + filePath).c_str());
+        return DEFAULT_ERROR_PAGE;
+    }
+    
+    // Check file size
+    size_t fileSize = pageFile.size();
+    if (fileSize > MAX_CONTENT_LEN) {
+        error(("Page file too large: " + filePath + " (" + std::to_string(fileSize) + " bytes)").c_str());
+        pageFile.close();
+        return DEFAULT_ERROR_PAGE;
+    }
+    
+    std::string content;
+    content.reserve(fileSize); // Pre-allocate memory
+    
+    while (pageFile.available()) {
+        // Read in chunks to avoid memory issues
+        char buffer[256];
+        size_t bytesRead = pageFile.readBytes(buffer, sizeof(buffer) - 1);
+        buffer[bytesRead] = '\0';
+        content += buffer;
+    }
+    
+    pageFile.close();
+    return content;
+
+} // getPageContent()
+
+
+// write page content to file
+bool SPAmanager::writePageToFile(const char* pageName, const char* html) 
+{
+    if (!ensurePageDirectory()) {
+        error("Failed to create pages directory");
+        return false;
+    }
+    
+    std::string filePath = PAGES_DIRECTORY;
+    filePath += pageName;
+    filePath += ".html";
+        
+    debug(("writePageToFile(): Writing page content to file: " + filePath).c_str());
+    
+    // Try to open the file
+    File pageFile = LittleFS.open(filePath.c_str(), "w");
+    if (!pageFile) {
+        error(("Failed to open page file for writing: " + filePath).c_str());
+        
+        // Try to ensure the directory exists again
+        if (ensurePageDirectory()) 
+        {
+            // Try opening the file again
+            pageFile = LittleFS.open(filePath.c_str(), "w");
+            if (!pageFile) {
+                error(("Still failed to open page file for writing: " + filePath).c_str());
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    
+    // Write in chunks to avoid memory issues
+    const char* ptr = html;
+    const size_t chunkSize = 256;
+    bool writeSuccess = true;
+    
+    while (*ptr && writeSuccess) {
+        size_t bytesToWrite = 0;
+        while (bytesToWrite < chunkSize && ptr[bytesToWrite]) {
+            bytesToWrite++;
+        }
+        
+        if (bytesToWrite > 0) {
+            size_t bytesWritten = pageFile.write((uint8_t*)ptr, bytesToWrite);
+            if (bytesWritten != bytesToWrite) {
+                error("Failed to write complete chunk to file");
+                writeSuccess = false;
+            }
+            ptr += bytesToWrite;
+        }
+    }
+    
+    pageFile.close();
+    
+    // Verify the file was written correctly
+    if (writeSuccess) {
+        File verifyFile = LittleFS.open(filePath.c_str(), "r");
+        if (verifyFile) {
+            debug(("writePageToFile(): Successfully verified file: " + filePath).c_str());
+            verifyFile.close();
+        } else {
+            error(("Failed to verify file: " + filePath).c_str());
+            writeSuccess = false;
+        }
+    }
+    
+    return writeSuccess;
+
+} //  writePageToFile()
+
+
+void SPAmanager::addPage(const char* pageName, const char* html) {
     debug(("addPage() called with pageName: " + std::string(pageName)).c_str());
-    
-    // Check available heap memory
-    size_t freeHeap = ESP.getFreeHeap();
-    size_t requiredMem = strlen(html) + sizeof(Page);
-    
-    debug(("addPage(): Available heap: " + std::to_string(freeHeap) + 
-           ", Required: " + std::to_string(requiredMem)).c_str());
     
     // Store first page name if this is the first page
     if (pages.empty()) {
-      firstPageName = pageName;
+        firstPageName = pageName;
     }
     
     // Check if page already exists
     auto it = std::find_if(pages.begin(), pages.end(),
         [pageName](const Page& page) { return strcmp(page.name, pageName) == 0; });
     
-    if (it != pages.end()) 
-    {
-        // Page exists, update content if we have enough memory
-        if (freeHeap > requiredMem + 10000) { // Keep 10KB buffer
-            it->setContent(html);
+    if (it != pages.end()) {
+        // Page exists, update content
+        if (writePageToFile(pageName, html)) {
+            // Update file path if needed
+            std::string filePath = PAGES_DIRECTORY;
+            filePath += pageName;
+            filePath += ".html";
+            
+            // Ensure the path starts with a slash
+            if (filePath[0] != '/') {
+                filePath = "/" + filePath;
+            }
+            
+            it->setFilePath(filePath.c_str());
             updateClients();
         } else {
-            // Not enough memory, use error page
-            it->setContent(DEFAULT_ERROR_PAGE);
-            error(("addPage(): Not enough memory to update page: " + std::string(pageName)).c_str());
-            updateClients();
+            error(("Failed to update page file for: " + std::string(pageName)).c_str());
         }
-    }
-    else 
-    {
-        // New page, add it if we have enough memory
-        if (freeHeap > requiredMem + 10000) { // Keep 10KB buffer
+    } else {
+        // New page
+        if (writePageToFile(pageName, html)) {
             Page page;
             page.setName(pageName);
-            page.setContent(html);
+            
+            std::string filePath = PAGES_DIRECTORY;
+            filePath += pageName;
+            filePath += ".html";
+            
+            // Ensure the path starts with a slash
+            if (filePath[0] != '/') {
+                filePath = "/" + filePath;
+            }
+            
+            page.setFilePath(filePath.c_str());
+            
             page.isVisible = false;
             pages.push_back(page);
+            
             if (!activePage) {
                 activePage = &pages.back();
                 pages.back().isVisible = true;
@@ -564,13 +885,14 @@ void SPAmanager::addPage(const char* pageName, const char* html)
                 updateClients();
             }
         } else {
-            // Not enough memory, add error page instead
+            error(("Failed to create page file for: " + std::string(pageName)).c_str());
+            // Add error page instead
             Page page;
             page.setName(pageName);
-            page.setContent(DEFAULT_ERROR_PAGE);
+            page.isFileStorage = false;
             page.isVisible = false;
             pages.push_back(page);
-            error(("addPage(): Not enough memory to add page: " + std::string(pageName) + ", using error page").c_str());
+            
             if (!activePage) {
                 activePage = &pages.back();
                 pages.back().isVisible = true;
@@ -603,16 +925,29 @@ void SPAmanager::setPageTitle(const char* pageName, const char* title)
 
 template <typename T>
 void SPAmanager::setPlaceholder(const char* pageName, const char* placeholder, T value) {
-    //debug((std::string("setPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder + ", value: " + std::to_string(value)).c_str());
+    debug((std::string("setPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
+    
     for (auto& page : pages) {
         if (strcmp(page.name, pageName) == 0) {
-            std::string content = page.getContent();
+            if (!page.isFileStorage) {
+                debug("Page is not using file storage, skipping placeholder update");
+                return;
+            }
+            
+            // Read the current content from file
+            std::string content = getPageContent(page);
+            if (content.empty() || content == DEFAULT_ERROR_PAGE) {
+                debug("Failed to read page content or using error page");
+                return;
+            }
+            
             std::string idStr1 = std::string("id='") + placeholder + "'";
             std::string idStr2 = std::string("id=\"") + placeholder + "\"";
             size_t pos = content.find(idStr1);
             if (pos == std::string::npos) {
                 pos = content.find(idStr2);
             }
+            
             if (pos != std::string::npos) {
                 // Check if it's an input field
                 size_t inputStart = content.rfind("<input", pos);
@@ -646,41 +981,64 @@ void SPAmanager::setPlaceholder(const char* pageName, const char* placeholder, T
                         content.replace(start, end - start, std::to_string(value));
                     }
                 }
-                page.setContent(content.c_str());
-                if (activePage && strcmp(activePage->name, pageName) == 0) {
-                    const size_t capacity = JSON_OBJECT_SIZE(3) + 256;
-                    DynamicJsonDocument doc(capacity);
+                
+                // Write the updated content back to the file
+                File pageFile = LittleFS.open(page.filePath, "w");
+                if (pageFile) {
+                    pageFile.print(content.c_str());
+                    pageFile.close();
                     
-                    doc["type"] = "update";
-                    doc["target"] = placeholder;
-                    doc["content"] = std::to_string(value);
-                    
-                    std::string output;
-                    serializeJson(doc, output);
-                    
-                    if (!output.empty()) {
-                        ws.broadcastTXT(output.c_str(), output.length());
+                    // If this is the active page, update clients
+                    if (activePage && strcmp(activePage->name, pageName) == 0) {
+                        const size_t capacity = JSON_OBJECT_SIZE(3) + 256;
+                        DynamicJsonDocument doc(capacity);
+                        
+                        doc["type"] = "update";
+                        doc["target"] = placeholder;
+                        doc["content"] = std::to_string(value);
+                        
+                        std::string output;
+                        serializeJson(doc, output);
+                        
+                        if (!output.empty()) {
+                            ws.broadcastTXT(output.c_str(), output.length());
+                        }
                     }
+                } else {
+                    error(("Failed to open page file for writing: " + std::string(page.filePath)).c_str());
                 }
             }
             break;
         }
     }
-}
+} // setPlaceholder()
 
 // Explicit specialization for char* to handle string literals
 template <>
 void SPAmanager::setPlaceholder<const char*>(const char* pageName, const char* placeholder, const char* value) {
     debug((std::string("setPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder + ", value: " + value).c_str());
+    
     for (auto& page : pages) {
         if (strcmp(page.name, pageName) == 0) {
-            std::string content = page.getContent();
+            if (!page.isFileStorage) {
+                debug("Page is not using file storage, skipping placeholder update");
+                return;
+            }
+            
+            // Read the current content from file
+            std::string content = getPageContent(page);
+            if (content.empty() || content == DEFAULT_ERROR_PAGE) {
+                debug("Failed to read page content or using error page");
+                return;
+            }
+            
             std::string idStr1 = std::string("id='") + placeholder + "'";
             std::string idStr2 = std::string("id=\"") + placeholder + "\"";
             size_t pos = content.find(idStr1);
             if (pos == std::string::npos) {
                 pos = content.find(idStr2);
             }
+            
             if (pos != std::string::npos) {
                 // Check if it's an input field
                 size_t inputStart = content.rfind("<input", pos);
@@ -714,96 +1072,105 @@ void SPAmanager::setPlaceholder<const char*>(const char* pageName, const char* p
                         content.replace(start, end - start, value);
                     }
                 }
-                page.setContent(content.c_str());
-                if (activePage && strcmp(activePage->name, pageName) == 0) {
-                    const size_t capacity = JSON_OBJECT_SIZE(3) + 256;
-                    DynamicJsonDocument doc(capacity);
+                
+                // Write the updated content back to the file
+                File pageFile = LittleFS.open(page.filePath, "w");
+                if (pageFile) {
+                    pageFile.print(content.c_str());
+                    pageFile.close();
                     
-                    doc["type"] = "update";
-                    doc["target"] = placeholder;
-                    doc["content"] = value;
-                    
-                    std::string output;
-                    serializeJson(doc, output);
-                    
-                    if (!output.empty()) {
-                        ws.broadcastTXT(output.c_str(), output.length());
+                    // If this is the active page, update clients
+                    if (activePage && strcmp(activePage->name, pageName) == 0) {
+                        const size_t capacity = JSON_OBJECT_SIZE(3) + 256;
+                        DynamicJsonDocument doc(capacity);
+                        
+                        doc["type"] = "update";
+                        doc["target"] = placeholder;
+                        doc["content"] = value;
+                        
+                        std::string output;
+                        serializeJson(doc, output);
+                        
+                        if (!output.empty()) {
+                            ws.broadcastTXT(output.c_str(), output.length());
+                        }
                     }
+                } else {
+                    error(("Failed to open page file for writing: " + std::string(page.filePath)).c_str());
                 }
             }
             break;
         }
     }
-}
+} // setPlaceholder()
 
-SPAmanager::PlaceholderValue SPAmanager::getPlaceholder(const char* pageName, const char* placeholder)
-{
-  debug((std::string("getPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
-  std::string value = "";
-  
-  for (const auto& page : pages)
-  {
-    if (strcmp(page.name, pageName) == 0)
-    {
-      std::string content = page.getContent();
-      std::string idStr1 = std::string("id='") + placeholder + "'";
-      std::string idStr2 = std::string("id=\"") + placeholder + "\"";
-      size_t pos = content.find(idStr1);
-      if (pos == std::string::npos) {
-          pos = content.find(idStr2);
-      }
-      
-      if (pos != std::string::npos)
-      {
-        // Check if it's an input field
-        size_t inputStart = content.rfind("<input", pos);
-        if (inputStart != std::string::npos && inputStart < pos)
-        {
-          // Find value attribute with single or double quotes
-          size_t valueStart1 = content.find("value='", inputStart);
-          size_t valueStart2 = content.find("value=\"", inputStart);
-          size_t closingBracket = content.find(">", inputStart);
-          
-          if (valueStart1 != std::string::npos && valueStart1 < closingBracket)
-          {
-            valueStart1 += 7; // Length of "value='"
-            size_t valueEnd = content.find("'", valueStart1);
-            if (valueEnd != std::string::npos)
-            {
-              value = content.substr(valueStart1, valueEnd - valueStart1);
+SPAmanager::PlaceholderValue SPAmanager::getPlaceholder(const char* pageName, const char* placeholder) {
+    debug((std::string("getPlaceholder() called with pageName: ") + pageName + ", placeholder: " + placeholder).c_str());
+    std::string value = "";
+    
+    for (const auto& page : pages) {
+        if (strcmp(page.name, pageName) == 0) {
+            if (!page.isFileStorage) {
+                debug("Page is not using file storage, returning empty placeholder");
+                return PlaceholderValue("");
             }
-          }
-          else if (valueStart2 != std::string::npos && valueStart2 < closingBracket)
-          {
-            valueStart2 += 7; // Length of "value=\""
-            size_t valueEnd = content.find("\"", valueStart2);
-            if (valueEnd != std::string::npos)
-            {
-              value = content.substr(valueStart2, valueEnd - valueStart2);
+            
+            // Read the current content from file
+            std::string content = getPageContent(page);
+            if (content.empty() || content == DEFAULT_ERROR_PAGE) {
+                debug("Failed to read page content or using error page");
+                return PlaceholderValue("");
             }
-          }
+            
+            std::string idStr1 = std::string("id='") + placeholder + "'";
+            std::string idStr2 = std::string("id=\"") + placeholder + "\"";
+            size_t pos = content.find(idStr1);
+            if (pos == std::string::npos) {
+                pos = content.find(idStr2);
+            }
+            
+            if (pos != std::string::npos) {
+                // Check if it's an input field
+                size_t inputStart = content.rfind("<input", pos);
+                if (inputStart != std::string::npos && inputStart < pos) {
+                    // Find value attribute with single or double quotes
+                    size_t valueStart1 = content.find("value='", inputStart);
+                    size_t valueStart2 = content.find("value=\"", inputStart);
+                    size_t closingBracket = content.find(">", inputStart);
+                    
+                    if (valueStart1 != std::string::npos && valueStart1 < closingBracket) {
+                        valueStart1 += 7; // Length of "value='"
+                        size_t valueEnd = content.find("'", valueStart1);
+                        if (valueEnd != std::string::npos) {
+                            value = content.substr(valueStart1, valueEnd - valueStart1);
+                        }
+                    } else if (valueStart2 != std::string::npos && valueStart2 < closingBracket) {
+                        valueStart2 += 7; // Length of "value=\""
+                        size_t valueEnd = content.find("\"", valueStart2);
+                        if (valueEnd != std::string::npos) {
+                            value = content.substr(valueStart2, valueEnd - valueStart2);
+                        }
+                    }
+                } else {
+                    // For non-input elements, get content between tags
+                    size_t start = content.find('>', pos) + 1;
+                    size_t end = content.find('<', start);
+                    
+                    if (start != std::string::npos && end != std::string::npos) {
+                        value = content.substr(start, end - start);
+                    }
+                }
+                // Trim whitespace
+                value.erase(0, value.find_first_not_of(" \t\n\r\f\v"));
+                value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1);
+            }
+            break;
         }
-        else
-        {
-          // For non-input elements, get content between tags
-          size_t start = content.find('>', pos) + 1;
-          size_t end = content.find('<', start);
-          
-          if (start != std::string::npos && end != std::string::npos)
-          {
-            value = content.substr(start, end - start);
-          }
-        }
-        // Trim whitespace
-        value.erase(0, value.find_first_not_of(" \t\n\r\f\v"));
-        value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1);
-      }
-      break;
     }
-  }
-  
-  return PlaceholderValue(value.c_str());
-}
+    
+    return PlaceholderValue(value.c_str());
+} // PlaceholderValue getPlaceholder()
+
 
 // Explicit template instantiations for setPlaceholder
 template void SPAmanager::setPlaceholder<unsigned int>(const char*, const char*, unsigned int);
@@ -1118,7 +1485,18 @@ void SPAmanager::enableID(const char* pageName, const char* id)
   {
     if (strcmp(page.name, pageName) == 0)
     {
-      std::string content = page.getContent();
+      if (!page.isFileStorage) {
+        debug("Page is not using file storage, skipping ID update");
+        return;
+      }
+      
+      // Read the current content from file
+      std::string content = getPageContent(page);
+      if (content.empty() || content == DEFAULT_ERROR_PAGE) {
+        debug("Failed to read page content or using error page");
+        return;
+      }
+      
       std::string idStr1 = std::string("id='") + id + "'";
       std::string idStr2 = std::string("id=\"") + id + "\"";
       size_t pos = content.find(idStr1);
@@ -1167,16 +1545,24 @@ void SPAmanager::enableID(const char* pageName, const char* id)
           content.insert(tagEnd, " style=\"display:block\"");
         }
         
-        page.setContent(content.c_str());
-        if (activePage && strcmp(activePage->name, pageName) == 0)
-        {
-          updateClients();
+        // Write the updated content back to the file
+        File pageFile = LittleFS.open(page.filePath, "w");
+        if (pageFile) {
+          pageFile.print(content.c_str());
+          pageFile.close();
+          
+          if (activePage && strcmp(activePage->name, pageName) == 0)
+          {
+            updateClients();
+          }
+        } else {
+          error(("Failed to open page file for writing: " + std::string(page.filePath)).c_str());
         }
       }
       break;
     }
   }
-}
+} // enableID()
 
 void SPAmanager::disableID(const char* pageName, const char* id)
 {
@@ -1185,7 +1571,18 @@ void SPAmanager::disableID(const char* pageName, const char* id)
   {
     if (strcmp(page.name, pageName) == 0)
     {
-      std::string content = page.getContent();
+      if (!page.isFileStorage) {
+        debug("Page is not using file storage, skipping ID update");
+        return;
+      }
+      
+      // Read the current content from file
+      std::string content = getPageContent(page);
+      if (content.empty() || content == DEFAULT_ERROR_PAGE) {
+        debug("Failed to read page content or using error page");
+        return;
+      }
+      
       std::string idStr1 = std::string("id='") + id + "'";
       std::string idStr2 = std::string("id=\"") + id + "\"";
       size_t pos = content.find(idStr1);
@@ -1234,16 +1631,25 @@ void SPAmanager::disableID(const char* pageName, const char* id)
           content.insert(tagEnd, " style=\"display:none\"");
         }
         
-        page.setContent(content.c_str());
-        if (activePage && strcmp(activePage->name, pageName) == 0)
-        {
-          updateClients();
+        // Write the updated content back to the file
+        File pageFile = LittleFS.open(page.filePath, "w");
+        if (pageFile) {
+          pageFile.print(content.c_str());
+          pageFile.close();
+          
+          if (activePage && strcmp(activePage->name, pageName) == 0)
+          {
+            updateClients();
+          }
+        } else {
+          error(("Failed to open page file for writing: " + std::string(page.filePath)).c_str());
         }
       }
       break;
     }
   }
-}
+} // disableID()
+
 
 
 void SPAmanager::includeJsFile(const std::string &path2JsFile)
@@ -1280,11 +1686,11 @@ void SPAmanager::includeJsFile(const std::string &path2JsFile)
   //-- Check if file has already been served
   if (servedFiles.find(sanitizedJsPath) != servedFiles.end()) 
   {
-    debug(("Script [" + sanitizedJsPath + "] already served, skipping").c_str());
+    debug(("includeJsFile(): Script [" + sanitizedJsPath + "] already served, skipping").c_str());
     return;
   }
 
-  debug(("Adding script to servedFiles: [" + sanitizedJsPath + "]").c_str());
+  debug(("includeJsFile(): Adding script to servedFiles: [" + sanitizedJsPath + "]").c_str());
 
   //-- Extract `fName` (last part of the path) for `serveStatic()`
   std::string fName = sanitizedJsPath.substr(sanitizedJsPath.find_last_of('/') + 1);
@@ -1293,8 +1699,20 @@ void SPAmanager::includeJsFile(const std::string &path2JsFile)
     fName.insert(0, 1, '/');
   }
 
+  //-- Prepare the filesystem path (remove leading slash)
+  //std::string fsPath = sanitizedJsPath;
+  //if (!fsPath.empty() && fsPath[0] == '/') {
+  //  fsPath = fsPath.substr(1);
+  //}
+
+  //-- Check if the file exists
+  if (!LittleFS.exists(sanitizedJsPath.c_str())) {
+    error(("File does not exist: " + sanitizedJsPath).c_str());
+    return;
+  }
+
   //-- Debugging `serveStatic()` call
-  debug(("server.serveStatic(" + fName + ", LittleFS, " + sanitizedJsPath + ")").c_str());
+  debug(("includeJsFile(): server.serveStatic(" + fName + ", LittleFS, " + sanitizedJsPath + ")").c_str());
 
   //-- Serve the script file statically
   server.serveStatic(fName.c_str(), LittleFS, sanitizedJsPath.c_str());
@@ -1303,7 +1721,6 @@ void SPAmanager::includeJsFile(const std::string &path2JsFile)
   servedFiles.insert(sanitizedJsPath);
 
 } // includeJsFile()
-
 
 void SPAmanager::includeCssFile(const std::string &path2CssFile)
 {
@@ -1339,11 +1756,11 @@ void SPAmanager::includeCssFile(const std::string &path2CssFile)
   //-- Check if CSS file has already been served
   if (servedFiles.find(sanitizedCssPath) != servedFiles.end()) 
   {
-    debug(("CSS [" + sanitizedCssPath + "] already served, skipping").c_str());
+    debug(("includeCssFile(): CSS [" + sanitizedCssPath + "] already served, skipping").c_str());
     return;
   }
 
-  debug(("Adding CSS to servedFiles: [" + sanitizedCssPath + "]").c_str());
+  debug(("includeCssFile(): Adding CSS to servedFiles: [" + sanitizedCssPath + "]").c_str());
 
   //-- Extract `fName` (last part of the path) for `serveStatic()`
   std::string fName = sanitizedCssPath.substr(sanitizedCssPath.find_last_of('/') + 1);
@@ -1352,8 +1769,24 @@ void SPAmanager::includeCssFile(const std::string &path2CssFile)
     fName.insert(0, 1, '/');
   }
 
+  //-- Prepare the filesystem path (remove leading slash)
+  //std::string fsPath = sanitizedCssPath;
+  //if (!fsPath.empty() && fsPath[0] == '/') {
+  //  fsPath = fsPath.substr(1);
+  //}
+
+  //-- Check if the file exists
+  if (!filesystemAvailable) {
+    error(("filesystem unavailable, CSS file: " + sanitizedCssPath).c_str());
+    //return;
+  }
+  if (!LittleFS.exists(sanitizedCssPath.c_str())) {
+    error(("CSS file does not exist: " + sanitizedCssPath).c_str());
+    return;
+  }
+
   //-- Debugging `serveStatic()` call
-  debug(("server.serveStatic(" + fName + ", LittleFS, " + sanitizedCssPath + ")").c_str());
+  debug(("includeCssFile(): server.serveStatic(" + fName + ", LittleFS, " + sanitizedCssPath + ")").c_str());
 
   //-- Serve the CSS file statically
   server.serveStatic(fName.c_str(), LittleFS, sanitizedCssPath.c_str());
@@ -1362,6 +1795,7 @@ void SPAmanager::includeCssFile(const std::string &path2CssFile)
   servedFiles.insert(sanitizedCssPath);
 
 } // includeCssFile()
+
 
 void SPAmanager::callJsFunction(const char* functionName)
 {
@@ -1551,10 +1985,81 @@ void SPAmanager::setHeaderTitle(const char* title)
 }
 
 
+// Add these constants to SPAmanager.cpp
+const char* SPAmanager::MINIMAL_HTML = R"HTML(
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPA Manager</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .header { background-color: #333; color: white; padding: 10px; }
+        .content { padding: 20px; }
+        .message { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .normal-message { background-color: #d4edda; color: #155724; }
+        .error-message { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 id="title">SPA Manager</h1>
+        <div id="datetime"></div>
+    </div>
+    <div id="message" class="message"></div>
+    <div id="bodyContent" class="content">Loading...</div>
+    <script>
+        let ws = new WebSocket('ws://' + window.location.hostname + ':81');
+        ws.onopen = () => {
+            ws.send(JSON.stringify({type: 'pageLoaded'}));
+        };
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.body) {
+                    document.getElementById('bodyContent').innerHTML = data.body;
+                }
+                if (data.message) {
+                    const msg = document.getElementById('message');
+                    msg.textContent = data.message;
+                    msg.className = data.isError ? 'message error-message' : 'message normal-message';
+                }
+            } catch (e) {
+                console.error('Error parsing message:', e);
+            }
+        };
+        ws.onclose = () => setTimeout(() => location.reload(), 1000);
+        
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('datetime').textContent = now.toLocaleString();
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+    </script>
+</body>
+</html>
+)HTML";
+
+// Update the generateHTML method to use the minimal HTML if needed
 std::string SPAmanager::generateHTML()
 {
-  debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
-  return R"HTML(
+    debug(("generateHTML() called (systemFiles are in [" + std::string(rootSystemPath) + "]").c_str());
+    
+    // Check if the HTML file exists
+    std::string htmlFilePath = rootSystemPath;
+    if (htmlFilePath[0] == '/') {
+        htmlFilePath = htmlFilePath.substr(1); // Remove leading slash for LittleFS
+    }
+    htmlFilePath += "/SPAmanager.html";
+    
+    if (!filesystemAvailable || !LittleFS.exists(htmlFilePath.c_str())) {
+        debug("Using minimal HTML fallback");
+        return MINIMAL_HTML;
+    }
+    
+    return R"HTML(
 <!DOCTYPE html>
 <html>
 <head>
