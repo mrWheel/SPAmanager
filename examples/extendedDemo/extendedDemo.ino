@@ -401,6 +401,12 @@ void setup()
     Serial.begin(115200);
     delay(3000);
 
+    if (!LittleFS.begin()) {
+      Serial.println("LittleFS Mount Failed");
+      return;
+    }
+    listFiles("/", 0);
+    
     //-- Connect to WiFi
     network = new Networking();
     
@@ -434,12 +440,6 @@ void setup()
     setupInputPage();
     setupFSmanagerPage();
     spa.activatePage("Main");
-
-    if (!LittleFS.begin()) {
-      Serial.println("LittleFS Mount Failed");
-      return;
-    }
-    listFiles("/", 0);
 
     Serial.println("Done with setup() ..\n");
 

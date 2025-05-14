@@ -2,6 +2,7 @@
 #define SPA_MANAGER_H
 
 #include <WiFi.h>
+#include <LittleFS.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <functional>

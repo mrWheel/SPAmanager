@@ -64,13 +64,8 @@ void SPAmanager::begin(const char* systemPath, Stream* debugOut)
 
     this->debugOut = debugOut;
 
-    debug(("SPAmanager::begin: begin(): called with rootSystemPath: [" + rootSystemPath + "]").c_str());
-    
-    // Initialize the filesystem with robust handling
-    //if (!initializeFilesystem()) {
-    //    error("Failed to initialize filesystem. Some features may not work correctly.");
-    //}
-    
+    debug(("SPAmanager::begin: called with rootSystemPath: [" + rootSystemPath + "]").c_str());
+        
     setupWebServer();
 
 } //  begin()
@@ -156,9 +151,6 @@ void SPAmanager::setupWebServer()
     server.serveStatic("/disconnected.html", LittleFS, disconnectedFilePath.c_str());
     debug(("server.serveStatic(/disconnected.html, LittleFS, " + disconnectedFilePath + ")").c_str());
 
-    //server.on("/", HTTP_GET, [this]() {
-    //    server.send(200, "text/html", generateHTML().c_str());
-    //});
     server.on("/", HTTP_GET, [this]() {
         server.sendHeader("Location", "/SPAmanager.html", true);
         server.send(302, "text/plain", "");
@@ -623,12 +615,16 @@ void SPAmanager::broadcastState()
 // method to stream page content in chunks
 void SPAmanager::streamPageContent(const Page& page) 
 {
-    // Remove leading slash for LittleFS
+    //-- Remove leading slash for LittleFS
     std::string filePath = page.filePath;
     if (!filePath.empty() && filePath[0] != '/') {
         filePath = "/" + filePath;
     }
-    
+    //-- Remove trailing slash if present (but not if it's just "/")
+    if (filePath.length() > 1 && filePath.back() == '/') {
+        filePath.pop_back();
+    }
+
     debug(("streamPageContent(): Streaming page content from file: " + filePath).c_str());
     File pageFile = LittleFS.open(filePath.c_str(), "r");
     if (!pageFile) {

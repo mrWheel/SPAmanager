@@ -1,5 +1,5 @@
 #include <Arduino.h>
-
+#include <LittleFS.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
@@ -192,7 +192,8 @@ void setup()
 {
     Serial.begin(115200);
     delay(3000);
-
+    LittleFS.begin();
+    
     //-- Connect to WiFi
     WiFiManager wifiManager;
     Serial.println("Attempting WiFi connection...");
